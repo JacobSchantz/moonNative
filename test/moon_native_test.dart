@@ -3,14 +3,9 @@ import 'package:moon_native/moon_native.dart';
 import 'package:moon_native/moon_native_platform_interface.dart';
 import 'package:moon_native/moon_native_method_channel.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
+import 'package:mocktail/mocktail.dart';
 
-class MockMoonNativePlatform
-    with MockPlatformInterfaceMixin
-    implements MoonNativePlatform {
-
-  @override
-  Future<String?> getPlatformVersion() => Future.value('42');
-}
+class MockMoonNativePlatform extends Mock implements MoonNativePlatform {}
 
 void main() {
   final MoonNativePlatform initialPlatform = MoonNativePlatform.instance;
@@ -20,10 +15,17 @@ void main() {
   });
 
   test('getPlatformVersion', () async {
-    MoonNative moonNativePlugin = MoonNative();
-    MockMoonNativePlatform fakePlatform = MockMoonNativePlatform();
+    final moonNativePlugin = MoonNative();
+    final fakePlatform = MockMoonNativePlatform();
+    
+    // Set up the mock
+    when(() => fakePlatform.getPlatformVersion())
+        .thenAnswer((_) async => '42');
+    
+    // Set the mock as the platform instance
     MoonNativePlatform.instance = fakePlatform;
 
+    // Verify the result
     expect(await moonNativePlugin.getPlatformVersion(), '42');
   });
 }
