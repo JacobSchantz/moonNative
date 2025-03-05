@@ -11,3 +11,6 @@ FlMethodResponse *get_platform_version();
 
 // Handles the performNativeCalculation method call.
 FlMethodResponse *perform_native_calculation(FlMethodCall* method_call);
+
+// Handles the trimVideo method call.
+FlMethodResponse *trim_video(FlMethodCall* method_call);

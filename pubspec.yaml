@@ -37,6 +37,8 @@ dependencies:
   path_provider: ^2.1.5 # For accessing device file system directories
   path: ^1.9.0 # For path manipulation operations
   video_player: ^2.9.3 # For video playback and metadata extraction
+  universal_html: ^2.2.4 # For web-specific HTML operations
+  js: ^0.7.1 # For JavaScript interoperability
 
 # Development-only dependencies (not included in published package)
 dev_dependencies:
@@ -80,6 +82,14 @@ flutter:
       web:
         pluginClass: MoonNativeWeb # JavaScript plugin class name
         fileName: moon_native_web.dart # Dart file containing web implementation
+        
+      # Windows platform integration
+      windows:
+        pluginClass: MoonNativePlugin
+        
+      # Linux platform integration
+      linux:
+        pluginClass: MoonNativePlugin
 
 
     # If assets are needed for this plugin, uncomment and add them here:
