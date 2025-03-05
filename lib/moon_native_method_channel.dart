@@ -16,16 +16,6 @@ class MethodChannelMoonNative extends MoonNativePlatform {
   }
 
   @override
-  Future<double> performNativeCalculation(double a, double b) async {
-    final Map<String, dynamic> args = {
-      'a': a,
-      'b': b,
-    };
-    final result = await methodChannel.invokeMethod<double>('performNativeCalculation', args);
-    return result ?? 0.0;
-  }
-
-  @override
   Future<String?> trimVideo(String videoPath, double startTime, double endTime) async {
     final Map<String, dynamic> args = {
       'videoPath': videoPath,
@@ -33,22 +23,5 @@ class MethodChannelMoonNative extends MoonNativePlatform {
       'endTime': endTime,
     };
     return await methodChannel.invokeMethod<String>('trimVideo', args);
-  }
-
-  @override
-  Future<String?> downloadVideo(String url, String localPath) async {
-    final Map<String, dynamic> args = {
-      'url': url,
-      'localPath': localPath,
-    };
-    return await methodChannel.invokeMethod<String>('downloadVideo', args);
-  }
-
-  @override
-  Future<double?> getVideoDuration(String videoPath) async {
-    final Map<String, dynamic> args = {
-      'videoPath': videoPath,
-    };
-    return await methodChannel.invokeMethod<double>('getVideoDuration', args);
   }
 }

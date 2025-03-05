@@ -15,18 +15,6 @@ public class MoonNativePlugin: NSObject, FlutterPlugin {
     case "getPlatformVersion":
       result("iOS " + UIDevice.current.systemVersion)
       
-    case "performNativeCalculation":
-      guard let args = call.arguments as? [String: Any],
-            let a = args["a"] as? Double,
-            let b = args["b"] as? Double else {
-        result(FlutterError(code: "INVALID_ARGS", message: "Invalid arguments", details: nil))
-        return
-      }
-      
-      // iOS-specific implementation: Multiply and add 10 (just as an example)
-      let calculationResult = (a * b) + 10.0
-      result(calculationResult)
-      
     case "trimVideo":
       guard let args = call.arguments as? [String: Any],
             let videoPath = args["videoPath"] as? String,

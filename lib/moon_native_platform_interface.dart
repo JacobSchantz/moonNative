@@ -27,15 +27,6 @@ abstract class MoonNativePlatform extends PlatformInterface {
     throw UnimplementedError('platformVersion() has not been implemented.');
   }
 
-  /// Performs a native calculation and returns the result
-  ///
-  /// The calculation is performed on the native side and may vary by platform.
-  /// Each platform should implement a simple calculation (e.g., adding two numbers)
-  /// but with platform-specific features or optimizations.
-  Future<double> performNativeCalculation(double a, double b) {
-    throw UnimplementedError('performNativeCalculation() has not been implemented.');
-  }
-
   /// Trims a video to the specified duration
   ///
   /// Parameters:
@@ -46,26 +37,5 @@ abstract class MoonNativePlatform extends PlatformInterface {
   /// Returns the path to the trimmed video file
   Future<String?> trimVideo(String videoPath, double startTime, double endTime) {
     throw UnimplementedError('trimVideo() has not been implemented.');
-  }
-
-  /// Downloads a video from a URL to a local path
-  ///
-  /// Parameters:
-  /// - url: The URL of the video to download
-  /// - localPath: The local path where the video should be saved
-  ///
-  /// Returns the path to the downloaded video or null if download failed
-  Future<String?> downloadVideo(String url, String localPath) {
-    throw UnimplementedError('downloadVideo() has not been implemented.');
-  }
-
-  /// Gets the duration of a video at the specified path
-  ///
-  /// Parameters:
-  /// - videoPath: Path to the video file
-  ///
-  /// Returns the duration of the video in seconds or null if getting duration failed
-  Future<double?> getVideoDuration(String videoPath) {
-    throw UnimplementedError('getVideoDuration() has not been implemented.');
   }
 }
