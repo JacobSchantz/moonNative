@@ -34,4 +34,21 @@ class MethodChannelMoonNative extends MoonNativePlatform {
     };
     return await methodChannel.invokeMethod<String>('trimVideo', args);
   }
+
+  @override
+  Future<String?> downloadVideo(String url, String localPath) async {
+    final Map<String, dynamic> args = {
+      'url': url,
+      'localPath': localPath,
+    };
+    return await methodChannel.invokeMethod<String>('downloadVideo', args);
+  }
+
+  @override
+  Future<double?> getVideoDuration(String videoPath) async {
+    final Map<String, dynamic> args = {
+      'videoPath': videoPath,
+    };
+    return await methodChannel.invokeMethod<double>('getVideoDuration', args);
+  }
 }

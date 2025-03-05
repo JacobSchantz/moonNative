@@ -47,4 +47,25 @@ abstract class MoonNativePlatform extends PlatformInterface {
   Future<String?> trimVideo(String videoPath, double startTime, double endTime) {
     throw UnimplementedError('trimVideo() has not been implemented.');
   }
+
+  /// Downloads a video from a URL to a local path
+  ///
+  /// Parameters:
+  /// - url: The URL of the video to download
+  /// - localPath: The local path where the video should be saved
+  ///
+  /// Returns the path to the downloaded video or null if download failed
+  Future<String?> downloadVideo(String url, String localPath) {
+    throw UnimplementedError('downloadVideo() has not been implemented.');
+  }
+
+  /// Gets the duration of a video at the specified path
+  ///
+  /// Parameters:
+  /// - videoPath: Path to the video file
+  ///
+  /// Returns the duration of the video in seconds or null if getting duration failed
+  Future<double?> getVideoDuration(String videoPath) {
+    throw UnimplementedError('getVideoDuration() has not been implemented.');
+  }
 }
