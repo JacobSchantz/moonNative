@@ -26,13 +26,25 @@ abstract class MoonNativePlatform extends PlatformInterface {
   Future<String?> getPlatformVersion() {
     throw UnimplementedError('platformVersion() has not been implemented.');
   }
-  
+
   /// Performs a native calculation and returns the result
-  /// 
+  ///
   /// The calculation is performed on the native side and may vary by platform.
   /// Each platform should implement a simple calculation (e.g., adding two numbers)
   /// but with platform-specific features or optimizations.
   Future<double> performNativeCalculation(double a, double b) {
     throw UnimplementedError('performNativeCalculation() has not been implemented.');
+  }
+
+  /// Trims a video to the specified duration
+  ///
+  /// Parameters:
+  /// - videoPath: Path to the input video file
+  /// - startTime: Start time in seconds
+  /// - endTime: End time in seconds
+  ///
+  /// Returns the path to the trimmed video file
+  Future<String?> trimVideo(String videoPath, double startTime, double endTime) {
+    throw UnimplementedError('trimVideo() has not been implemented.');
   }
 }

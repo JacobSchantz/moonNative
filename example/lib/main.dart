@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:moon_native/moon_native.dart';
+import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 
 void main() {
   runApp(const MyApp());
@@ -18,11 +21,22 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   String _platformVersion = 'Unknown';
   String _calculationResult = 'Not calculated yet';
+  String _videoStatus = 'No video downloaded yet';
+  String _trimStatus = 'No video trimmed yet';
   final _moonNativePlugin = MoonNative();
   
   // Values for the calculation
   final TextEditingController _valueAController = TextEditingController(text: '5');
   final TextEditingController _valueBController = TextEditingController(text: '2');
+  
+  // Values for video downloading and trimming
+  final TextEditingController _videoUrlController = TextEditingController(
+    text: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4'
+  );
+  final TextEditingController _startTimeController = TextEditingController(text: '0.0');
+  final TextEditingController _endTimeController = TextEditingController(text: '5.0');
+  
+  String _downloadedVideoPath = '';
 
   @override
   void initState() {
@@ -34,6 +48,9 @@ class _MyAppState extends State<MyApp> {
   void dispose() {
     _valueAController.dispose();
     _valueBController.dispose();
+    _videoUrlController.dispose();
+    _startTimeController.dispose();
+    _endTimeController.dispose();
     super.dispose();
   }
 
@@ -57,6 +74,95 @@ class _MyAppState extends State<MyApp> {
     setState(() {
       _platformVersion = platformVersion;
     });
+  }
+  
+  Future<void> _downloadVideoFromUrl() async {
+    try {
+      final String videoUrl = _videoUrlController.text;
+      if (videoUrl.isEmpty) {
+        setState(() {
+          _videoStatus = 'Error: Please enter a valid video URL';
+        });
+        return;
+      }
+      
+      setState(() {
+        _videoStatus = 'Downloading video...';
+        _downloadedVideoPath = '';
+      });
+      
+      // Get a temporary directory to save the video
+      final Directory tempDir = await getTemporaryDirectory();
+      final String fileName = '${DateTime.now().millisecondsSinceEpoch}.mp4';
+      final String filePath = '${tempDir.path}/$fileName';
+      
+      // Download the video using HTTP
+      final http.Response response = await http.get(Uri.parse(videoUrl));
+      
+      if (response.statusCode == 200) {
+        // Save the downloaded video to a file
+        final File file = File(filePath);
+        await file.writeAsBytes(response.bodyBytes);
+        
+        setState(() {
+          _downloadedVideoPath = filePath;
+          _videoStatus = 'Video downloaded successfully! Path: $filePath';
+        });
+      } else {
+        setState(() {
+          _videoStatus = 'Error: Failed to download video. Status code: ${response.statusCode}';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _videoStatus = 'Error: $e';
+      });
+    }
+  }
+  
+  Future<void> _trimDownloadedVideo() async {
+    try {
+      if (_downloadedVideoPath.isEmpty) {
+        setState(() {
+          _trimStatus = 'Error: Please download a video first';
+        });
+        return;
+      }
+      
+      final double startTime = double.parse(_startTimeController.text);
+      final double endTime = double.parse(_endTimeController.text);
+      
+      if (startTime >= endTime) {
+        setState(() {
+          _trimStatus = 'Error: End time must be greater than start time';
+        });
+        return;
+      }
+      
+      setState(() {
+        _trimStatus = 'Trimming video...';
+      });
+      
+      final String? result = await _moonNativePlugin.trimVideo(_downloadedVideoPath, startTime, endTime);
+      
+      setState(() {
+        _trimStatus = result != null 
+            ? 'Video trimmed successfully!\nOutput: $result' 
+            : 'Error: Trim operation returned null';
+      });
+    } on FormatException catch (e) {
+      setState(() {
+        _trimStatus = 'Error: Invalid time format - ${e.message}';
+      });
+    } on PlatformException catch (e) {
+      setState(() {
+        _trimStatus = 'Error: ${e.message}';
+      });
+    } catch (e) {
+      setState(() {
+        _trimStatus = 'Error: $e';
+      });
+    }
   }
   
   Future<void> _performNativeCalculation() async {
@@ -91,9 +197,10 @@ class _MyAppState extends State<MyApp> {
         appBar: AppBar(
           title: const Text('MoonNative Plugin Example'),
         ),
-        body: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
+        body: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text('Running on: $_platformVersion\n', 
@@ -143,9 +250,88 @@ class _MyAppState extends State<MyApp> {
                 ),
                 child: Text(_calculationResult),
               ),
+              
+              const Divider(height: 40),
+              
+              const Text(
+                'Video Processing Example:',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: _videoUrlController,
+                decoration: const InputDecoration(
+                  labelText: 'Video URL',
+                  hintText: 'https://example.com/video.mp4',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _downloadVideoFromUrl,
+                child: const Text('Download Video'),
+              ),
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(_videoStatus),
+              ),
+              
+              if (_downloadedVideoPath.isNotEmpty) ...[  
+                const SizedBox(height: 20),
+                const Text(
+                  'Trim Video:',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _startTimeController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: const InputDecoration(
+                          labelText: 'Start Time (s)',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: TextField(
+                        controller: _endTimeController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: const InputDecoration(
+                          labelText: 'End Time (s)',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: _trimDownloadedVideo,
+                  child: const Text('Trim Video'),
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(_trimStatus),
+                ),
+              ],
             ],
           ),
         ),
+      ),
       ),
     );
   }
