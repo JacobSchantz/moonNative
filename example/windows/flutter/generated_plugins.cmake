@@ -3,8 +3,6 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
-  moon_native
-  permission_handler_windows
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST

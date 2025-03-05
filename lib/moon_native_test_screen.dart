@@ -41,6 +41,8 @@ class _MoonNativeTestWidgetState extends State<MoonNativeTestWidget> {
   VideoPlayerController? _videoPlayerController;
   String _videoDuration = 'Duration unknown';
   String _errorMessage = '';
+  bool _isDownloading = false;
+  bool _isTrimming = false;
   final String _fixedVideoUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4';
 
   @override
@@ -53,6 +55,7 @@ class _MoonNativeTestWidgetState extends State<MoonNativeTestWidget> {
   Future<void> _downloadVideo() async {
     setState(() {
       _errorMessage = '';
+      _isDownloading = true;
     });
 
     try {
@@ -72,9 +75,14 @@ class _MoonNativeTestWidgetState extends State<MoonNativeTestWidget> {
       await file.writeAsBytes(response.bodyBytes);
       _videoPathController.text = localPath;
       await _updateVideoDuration();
+
+      setState(() {
+        _isDownloading = false;
+      });
     } catch (e) {
       setState(() {
         _errorMessage = 'Error downloading video: $e';
+        _isDownloading = false;
       });
     }
   }
@@ -108,6 +116,7 @@ class _MoonNativeTestWidgetState extends State<MoonNativeTestWidget> {
   Future<void> _trimVideo() async {
     setState(() {
       _errorMessage = '';
+      _isTrimming = true;
     });
 
     try {
@@ -141,9 +150,14 @@ class _MoonNativeTestWidgetState extends State<MoonNativeTestWidget> {
 
       _videoPathController.text = outputPath;
       await _updateVideoDuration();
+
+      setState(() {
+        _isTrimming = false;
+      });
     } catch (e) {
       setState(() {
         _errorMessage = 'Error trimming video: $e';
+        _isTrimming = false;
       });
     }
   }
@@ -164,8 +178,13 @@ class _MoonNativeTestWidgetState extends State<MoonNativeTestWidget> {
       child: Column(
         children: [
           ElevatedButton(
-            onPressed: _downloadVideo,
-            child: const Text('Download Sample Video'),
+            onPressed: _isDownloading ? null : _downloadVideo,
+            child: _isDownloading
+                ? const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)), SizedBox(width: 10), Text('Downloading...')],
+                  )
+                : const Text('Download Sample Video'),
           ),
           const SizedBox(height: 20),
           TextField(
@@ -176,8 +195,13 @@ class _MoonNativeTestWidgetState extends State<MoonNativeTestWidget> {
           Text(_videoDuration),
           const SizedBox(height: 10),
           ElevatedButton(
-            onPressed: _trimVideo,
-            child: const Text('Trim Video (Half)'),
+            onPressed: _isTrimming ? null : _trimVideo,
+            child: _isTrimming
+                ? const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)), SizedBox(width: 10), Text('Trimming...')],
+                  )
+                : const Text('Trim Video (Half)'),
           ),
           const SizedBox(height: 20),
           if (_errorMessage.isNotEmpty)

@@ -17,33 +17,33 @@ repository: "https://github.com/example/moon_native"
 # Environment constraints
 # These define the versions of Dart and Flutter required
 environment:
-  sdk: ^3.6.0        # Dart SDK version constraint
-  flutter: ">=3.3.0"  # Flutter SDK version constraint
+  sdk: ^3.6.0 # Dart SDK version constraint
+  flutter: ">=3.3.0" # Flutter SDK version constraint
 
 # Dependencies required for this package
 dependencies:
   # Flutter SDK dependencies - core Flutter packages
   flutter:
-    sdk: flutter     # The Flutter framework itself
+    sdk: flutter # The Flutter framework itself
   flutter_web_plugins:
-    sdk: flutter     # Support for web platform plugins
+    sdk: flutter # Support for web platform plugins
   # Plugin infrastructure dependencies
-  plugin_platform_interface: ^2.1.8  # Base classes for platform interfaces
-  web: ^1.1.1                        # Web platform support
-  
+  plugin_platform_interface: ^2.1.8 # Base classes for platform interfaces
+  web: ^1.1.1 # Web platform support
+
   # Dependencies used by the test widget implementation
   # These aren't needed for the core plugin functionality but support the demo UI
-  http: ^1.3.0            # For making HTTP requests to download videos
-  path_provider: ^2.1.5   # For accessing device file system directories
-  path: ^1.9.0            # For path manipulation operations
-  video_player: ^2.9.3    # For video playback and metadata extraction
+  http: ^1.3.0 # For making HTTP requests to download videos
+  path_provider: ^2.1.5 # For accessing device file system directories
+  path: ^1.9.0 # For path manipulation operations
+  video_player: ^2.9.3 # For video playback and metadata extraction
 
 # Development-only dependencies (not included in published package)
 dev_dependencies:
   flutter_test:
-    sdk: flutter     # Flutter's testing framework
-  flutter_lints: ^5.0.0  # Lint rules for good coding practices
-  mocktail: ^1.0.4       # Mocking framework for unit tests
+    sdk: flutter # Flutter's testing framework
+  flutter_lints: ^5.0.0 # Lint rules for good coding practices
+  mocktail: ^1.0.4 # Mocking framework for unit tests
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -65,26 +65,27 @@ flutter:
     platforms:
       # Android platform integration
       android:
-        package: com.example.moon_native   # Java/Kotlin package name
-        pluginClass: MoonNativePlugin      # Native plugin class name
-      
+        package: com.example.moon_native # Java/Kotlin package name
+        pluginClass: MoonNativePlugin # Native plugin class name
+
       # iOS platform integration
       ios:
-        pluginClass: MoonNativePlugin      # Swift/Objective-C plugin class name
-      
+        pluginClass: MoonNativePlugin # Swift/Objective-C plugin class name
+
       # macOS platform integration
       macos:
-        pluginClass: MoonNativePlugin      # Swift/Objective-C plugin class name
-      
+        pluginClass: MoonNativePlugin # Swift/Objective-C plugin class name
+
       # Web platform integration
       web:
-        pluginClass: MoonNativeWeb         # JavaScript plugin class name
-        fileName: moon_native_web.dart     # Dart file containing web implementation
+        pluginClass: MoonNativeWeb # JavaScript plugin class name
+        fileName: moon_native_web.dart # Dart file containing web implementation
+
 
     # If assets are needed for this plugin, uncomment and add them here:
   # assets:
   #   - images/example.jpg
-  
+
   # For more details on managing assets in Flutter packages, see:
   # https://flutter.dev/docs/development/ui/assets-and-images
   #   - family: Schyler
