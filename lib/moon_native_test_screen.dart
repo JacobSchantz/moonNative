@@ -39,16 +39,21 @@ class _MoonNativeTestWidgetState extends State<MoonNativeTestWidget> {
   final _moonNativePlugin = MoonNative();
   final TextEditingController _videoPathController = TextEditingController();
   VideoPlayerController? _videoPlayerController;
+  VideoPlayerController? _rotatedVideoController;
   String _videoDuration = 'Duration unknown';
   String _errorMessage = '';
   bool _isDownloading = false;
   bool _isTrimming = false;
+  bool _isRotating = false;
+  String? _rotatedVideoPath;
+  int _selectedQuarterTurns = 1; // Default to 90 degrees clockwise
   final String _fixedVideoUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4';
 
   @override
   void dispose() {
     _videoPathController.dispose();
     _videoPlayerController?.dispose();
+    _rotatedVideoController?.dispose();
     super.dispose();
   }
 
@@ -171,11 +176,104 @@ class _MoonNativeTestWidgetState extends State<MoonNativeTestWidget> {
     }
   }
 
+  Future<void> _rotateVideo() async {
+    setState(() {
+      _errorMessage = '';
+      _isRotating = true;
+    });
+
+    try {
+      final String videoPath = _videoPathController.text;
+      if (videoPath.isEmpty) {
+        setState(() {
+          _errorMessage = 'Error: Please enter a video path';
+        });
+        return;
+      }
+      
+      final File videoFile = File(videoPath);
+      if (!videoFile.existsSync()) {
+        setState(() {
+          _errorMessage = 'Error: Video file not found';
+        });
+        return;
+      }
+      
+      // Print original video file size for debugging
+      print('Original video file size: ${videoFile.lengthSync()} bytes');
+
+      final String? outputPath = await _moonNativePlugin.rotateVideo(videoPath, _selectedQuarterTurns);
+      if (outputPath == null) {
+        setState(() {
+          _errorMessage = 'Error: Rotation failed - no output generated';
+        });
+        return;
+      }
+      
+      // Verify the rotated file exists and has content
+      final File rotatedFile = File(outputPath);
+      if (!rotatedFile.existsSync()) {
+        setState(() {
+          _errorMessage = 'Error: Rotated video file does not exist';
+        });
+        return;
+      }
+      
+      final int rotatedFileSize = rotatedFile.lengthSync();
+      print('Rotated video file size: $rotatedFileSize bytes');
+      
+      if (rotatedFileSize <= 0) {
+        setState(() {
+          _errorMessage = 'Error: Rotated video file is empty';
+        });
+        return;
+      }
+
+      // Dispose of previous rotated video controller if exists
+      await _rotatedVideoController?.dispose();
+      
+      // Create the controller with a delay to ensure file is fully written
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      // Initialize new controller with rotated video
+      _rotatedVideoController = VideoPlayerController.file(rotatedFile);
+      
+      try {
+        await _rotatedVideoController!.initialize();
+        print('Rotated video initialized successfully');
+        print('Video dimensions: ${_rotatedVideoController!.value.size}');
+        print('Video duration: ${_rotatedVideoController!.value.duration}');
+        
+        // Start playback of both videos
+        _videoPlayerController?.play();
+        _rotatedVideoController?.play();
+        
+        setState(() {
+          _rotatedVideoPath = outputPath;
+          _isRotating = false;
+        });
+      } catch (initError) {
+        print('Error initializing rotated video: $initError');
+        setState(() {
+          _errorMessage = 'Error initializing rotated video: $initError';
+          _isRotating = false;
+        });
+      }
+    } catch (e) {
+      print('Error rotating video: $e');
+      setState(() {
+        _errorMessage = 'Error rotating video: $e';
+        _isRotating = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           ElevatedButton(
             onPressed: _isDownloading ? null : _downloadVideo,
@@ -194,15 +292,118 @@ class _MoonNativeTestWidgetState extends State<MoonNativeTestWidget> {
           const SizedBox(height: 10),
           Text(_videoDuration),
           const SizedBox(height: 10),
-          ElevatedButton(
-            onPressed: _isTrimming ? null : _trimVideo,
-            child: _isTrimming
-                ? const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)), SizedBox(width: 10), Text('Trimming...')],
-                  )
-                : const Text('Trim Video (Half)'),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: _isTrimming ? null : _trimVideo,
+                  child: _isTrimming
+                      ? const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)), SizedBox(width: 10), Text('Trimming...')],
+                        )
+                      : const Text('Trim Video (Half)'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              DropdownButton<int>(
+                value: _selectedQuarterTurns,
+                items: const [
+                  DropdownMenuItem(value: 1, child: Text('90° CW')),
+                  DropdownMenuItem(value: 2, child: Text('180°')),
+                  DropdownMenuItem(value: 3, child: Text('270° CW')),
+                  DropdownMenuItem(value: -1, child: Text('90° CCW')),
+                ],
+                onChanged: (value) => setState(() => _selectedQuarterTurns = value!),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: _isRotating ? null : _rotateVideo,
+                  child: _isRotating
+                      ? const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)), SizedBox(width: 10), Text('Rotating...')],
+                        )
+                      : const Text('Rotate Video'),
+                ),
+              ),
+            ],
           ),
+          const SizedBox(height: 20),
+          if (_videoPlayerController != null)
+            SizedBox(
+              height: 200,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        const Text('Original Video', style: TextStyle(fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 5),
+                        Expanded(
+                          child: AspectRatio(
+                            aspectRatio: _videoPlayerController!.value.aspectRatio,
+                            child: VideoPlayer(_videoPlayerController!),
+                          ),
+                        ),
+                        VideoProgressIndicator(_videoPlayerController!, allowScrubbing: true),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            IconButton(
+                              icon: Icon(_videoPlayerController!.value.isPlaying ? Icons.pause : Icons.play_arrow),
+                              onPressed: () {
+                                setState(() {
+                                  _videoPlayerController!.value.isPlaying
+                                      ? _videoPlayerController!.pause()
+                                      : _videoPlayerController!.play();
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (_rotatedVideoController != null && _rotatedVideoPath != null) ...[  
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Text('Rotated Video (${_selectedQuarterTurns * 90}°)', style: const TextStyle(fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 5),
+                          Expanded(
+                            child: AspectRatio(
+                              aspectRatio: _rotatedVideoController!.value.aspectRatio,
+                              child: VideoPlayer(_rotatedVideoController!),
+                            ),
+                          ),
+                          VideoProgressIndicator(_rotatedVideoController!, allowScrubbing: true),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              IconButton(
+                                icon: Icon(_rotatedVideoController!.value.isPlaying ? Icons.pause : Icons.play_arrow),
+                                onPressed: () {
+                                  setState(() {
+                                    _rotatedVideoController!.value.isPlaying
+                                        ? _rotatedVideoController!.pause()
+                                        : _rotatedVideoController!.play();
+                                  });
+                                },
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
           const SizedBox(height: 20),
           if (_errorMessage.isNotEmpty)
             Row(

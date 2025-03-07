@@ -20,4 +20,15 @@ class MoonNative {
   Future<String?> trimVideo(String videoPath, double startTime, double endTime) {
     return MoonNativePlatform.instance.trimVideo(videoPath, startTime, endTime);
   }
+  
+  /// Rotates a video by the specified quarter turns
+  ///
+  /// Parameters:
+  /// - videoPath: Path to the input video file
+  /// - quarterTurns: Number of 90° rotations (1=90° clockwise, 2=180°, 3=270°, -1=90° counterclockwise)
+  ///
+  /// Returns the path to the rotated video file or null if rotation failed
+  Future<String?> rotateVideo(String videoPath, int quarterTurns) {
+    return MoonNativePlatform.instance.rotateVideo(videoPath, quarterTurns);
+  }
 }

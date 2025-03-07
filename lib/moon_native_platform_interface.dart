@@ -38,4 +38,15 @@ abstract class MoonNativePlatform extends PlatformInterface {
   Future<String?> trimVideo(String videoPath, double startTime, double endTime) {
     throw UnimplementedError('trimVideo() has not been implemented.');
   }
+  
+  /// Rotates a video by the specified quarter turns
+  ///
+  /// Parameters:
+  /// - videoPath: Path to the input video file
+  /// - quarterTurns: Number of 90° rotations (1=90° clockwise, 2=180°, 3=270°, -1=90° counterclockwise)
+  ///
+  /// Returns the path to the rotated video file
+  Future<String?> rotateVideo(String videoPath, int quarterTurns) {
+    throw UnimplementedError('rotateVideo() has not been implemented.');
+  }
 }

@@ -6,6 +6,7 @@
 import 'dart:async';
 import 'dart:html' as html;
 import 'dart:js_util' as js_util;
+import 'dart:math' as math;
 
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 import 'package:web/web.dart' as web;
@@ -26,6 +27,14 @@ class MoonNativeWeb extends MoonNativePlatform {
   Future<String?> getPlatformVersion() async {
     final version = web.window.navigator.userAgent;
     return version;
+  }
+  
+  /// Rotates a video by the specified quarter turns.
+  ///
+  /// This operation is not supported on the web platform and will throw an exception.
+  @override
+  Future<String?> rotateVideo(String videoPath, int quarterTurns) async {
+    throw UnsupportedError('Video rotation is not supported on the web platform');
   }
 
   /// Trims a video from the given path using start and end times.
