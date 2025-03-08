@@ -46,7 +46,7 @@ class _MoonNativeTestWidgetState extends State<MoonNativeTestWidget> {
   bool _isTrimming = false;
   bool _isRotating = false;
   String? _rotatedVideoPath;
-  int _selectedQuarterTurns = 1; // Default to 90 degrees clockwise
+  int _clockwiseQuarterTurns = 1; // Default to 1 quarter turn (90 degrees clockwise)
   final String _fixedVideoUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4';
 
   @override
@@ -202,7 +202,7 @@ class _MoonNativeTestWidgetState extends State<MoonNativeTestWidget> {
       // Print original video file size for debugging
       print('Original video file size: ${videoFile.lengthSync()} bytes');
 
-      final String? outputPath = await _moonNativePlugin.rotateVideo(videoPath, _selectedQuarterTurns);
+      final String? outputPath = await _moonNativePlugin.rotateVideo(videoPath, _clockwiseQuarterTurns);
       if (outputPath == null) {
         setState(() {
           _errorMessage = 'Error: Rotation failed - no output generated';
@@ -307,14 +307,13 @@ class _MoonNativeTestWidgetState extends State<MoonNativeTestWidget> {
               ),
               const SizedBox(width: 10),
               DropdownButton<int>(
-                value: _selectedQuarterTurns,
+                value: _clockwiseQuarterTurns,
                 items: const [
-                  DropdownMenuItem(value: 1, child: Text('90° CW')),
-                  DropdownMenuItem(value: 2, child: Text('180°')),
-                  DropdownMenuItem(value: 3, child: Text('270° CW')),
-                  DropdownMenuItem(value: -1, child: Text('90° CCW')),
+                  DropdownMenuItem(value: 1, child: Text('1 Quarter Turn')),
+                  DropdownMenuItem(value: 2, child: Text('2 Quarter Turns')),
+                  DropdownMenuItem(value: 3, child: Text('3 Quarter Turns')),
                 ],
-                onChanged: (value) => setState(() => _selectedQuarterTurns = value!),
+                onChanged: (value) => setState(() => _clockwiseQuarterTurns = value!),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -373,7 +372,7 @@ class _MoonNativeTestWidgetState extends State<MoonNativeTestWidget> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          Text('Rotated Video (${_selectedQuarterTurns * 90}°)', style: const TextStyle(fontWeight: FontWeight.bold)),
+                          Text('Rotated Video ($_clockwiseQuarterTurns Quarter ${_clockwiseQuarterTurns == 1 ? 'Turn' : 'Turns'})', style: const TextStyle(fontWeight: FontWeight.bold)),
                           const SizedBox(height: 5),
                           Expanded(
                             child: AspectRatio(

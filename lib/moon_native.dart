@@ -21,14 +21,17 @@ class MoonNative {
     return MoonNativePlatform.instance.trimVideo(videoPath, startTime, endTime);
   }
   
-  /// Rotates a video by the specified quarter turns
+  /// Rotates a video by the specified clockwise quarter turns
   ///
   /// Parameters:
   /// - videoPath: Path to the input video file
-  /// - quarterTurns: Number of 90° rotations (1=90° clockwise, 2=180°, 3=270°, -1=90° counterclockwise)
+  /// - clockwiseQuarterTurns: Number of 90° clockwise rotations (1=90°, 2=180°, 3=270°)
+  ///   Must be a value between 1 and 3 inclusive.
   ///
   /// Returns the path to the rotated video file or null if rotation failed
-  Future<String?> rotateVideo(String videoPath, int quarterTurns) {
-    return MoonNativePlatform.instance.rotateVideo(videoPath, quarterTurns);
+  Future<String?> rotateVideo(String videoPath, int clockwiseQuarterTurns) {
+    assert(clockwiseQuarterTurns >= 1 && clockwiseQuarterTurns <= 3, 
+           'clockwiseQuarterTurns must be between 1 and 3 inclusive');
+    return MoonNativePlatform.instance.rotateVideo(videoPath, clockwiseQuarterTurns);
   }
 }

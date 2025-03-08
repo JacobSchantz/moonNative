@@ -26,10 +26,10 @@ class MethodChannelMoonNative extends MoonNativePlatform {
   }
   
   @override
-  Future<String?> rotateVideo(String videoPath, int quarterTurns) async {
+  Future<String?> rotateVideo(String videoPath, int clockwiseQuarterTurns) async {
     final Map<String, dynamic> args = {
       'videoPath': videoPath,
-      'quarterTurns': quarterTurns,
+      'quarterTurns': clockwiseQuarterTurns, // Keep parameter name as 'quarterTurns' for native interface compatibility
     };
     return await methodChannel.invokeMethod<String>('rotateVideo', args);
   }
