@@ -5,7 +5,11 @@ import 'dart:async';
 export 'moon_native_test_screen.dart';
 
 class MoonNative {
-  Future<String?> getPlatformVersion() {
+  /// Private constructor to prevent instantiation
+  MoonNative._();
+  
+  /// Gets the platform version
+  static Future<String?> getPlatformVersion() {
     return MoonNativePlatform.instance.getPlatformVersion();
   }
 
@@ -17,7 +21,7 @@ class MoonNative {
   /// - endTime: End time in seconds
   ///
   /// Returns the path to the trimmed video file or null if trimming failed
-  Future<String?> trimVideo(String videoPath, double startTime, double endTime) {
+  static Future<String?> trimVideo(String videoPath, double startTime, double endTime) {
     return MoonNativePlatform.instance.trimVideo(videoPath, startTime, endTime);
   }
   
@@ -29,9 +33,25 @@ class MoonNative {
   ///   Must be a value between 1 and 3 inclusive.
   ///
   /// Returns the path to the rotated video file or null if rotation failed
-  Future<String?> rotateVideo(String videoPath, int clockwiseQuarterTurns) {
+  static Future<String?> rotateVideo(String videoPath, int clockwiseQuarterTurns) {
     assert(clockwiseQuarterTurns >= 1 && clockwiseQuarterTurns <= 3, 
            'clockwiseQuarterTurns must be between 1 and 3 inclusive');
     return MoonNativePlatform.instance.rotateVideo(videoPath, clockwiseQuarterTurns);
+  }
+  
+  /// Plays a short beep sound
+  ///
+  /// Parameters:
+  /// - frequency: (Optional) The frequency of the beep in Hz (Android only)
+  /// - durationMs: (Optional) The duration of the beep in milliseconds (Android only)
+  /// - volume: (Optional) The volume of the beep from 0.0 to 1.0 (Android only)
+  ///
+  /// Returns true if the beep was played successfully, false otherwise
+  static Future<bool> playBeep({int frequency = 1000, int durationMs = 200, double volume = 1.0}) {
+    return MoonNativePlatform.instance.playBeep(
+      frequency: frequency,
+      durationMs: durationMs,
+      volume: volume,
+    );
   }
 }

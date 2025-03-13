@@ -2,6 +2,7 @@ import Flutter
 import UIKit
 import Foundation
 import AVFoundation
+import AudioToolbox
 
 public class MoonNativePlugin: NSObject, FlutterPlugin {
   public static func register(with registrar: FlutterPluginRegistrar) {
@@ -48,6 +49,21 @@ public class MoonNativePlugin: NSObject, FlutterPlugin {
         }
       }
         
+    case "playBeep":
+      // Extract optional parameters with default values
+      let args = call.arguments as? [String: Any]
+      let frequency = args?["frequency"] as? Int ?? 1000
+      let durationMs = args?["durationMs"] as? Int ?? 200
+      let volume = args?["volume"] as? Double ?? 1.0
+      
+      playBeep(frequency: frequency, durationMs: durationMs, volume: Float(volume)) { success, error in
+        if let error = error {
+          result(FlutterError(code: "BEEP_ERROR", message: error.localizedDescription, details: nil))
+        } else {
+          result(success)
+        }
+      }
+    
     default:
       result(FlutterMethodNotImplemented)
     }
@@ -226,6 +242,31 @@ public class MoonNativePlugin: NSObject, FlutterPlugin {
           completion(nil, exportSession.error ?? NSError(domain: "com.moonnative", code: 502, userInfo: [NSLocalizedDescriptionKey: "Unknown export error"]))
         }
       }
+    }
+  }
+  
+  /// Plays a short beep sound
+  /// - Parameters:
+  ///   - frequency: The frequency of the beep in Hz (not used in iOS implementation - uses system sound)
+  ///   - durationMs: The duration of the beep in milliseconds (not used in iOS implementation)
+  ///   - volume: The volume of the beep from 0.0 to 1.0 (not used in iOS implementation)
+  ///   - completion: Callback with the success status or error
+  private func playBeep(frequency: Int, durationMs: Int, volume: Float, completion: @escaping (Bool, Error?) -> Void) {
+    do {
+      // On iOS, we'll use a system sound for the beep
+      // Note: System sound 1057 is a standard beep sound on iOS
+      AudioServicesPlaySystemSound(1057)
+      
+      // Since AudioServicesPlaySystemSound is non-blocking and has no completion callback,
+      // we'll wait for the approximate duration before calling the completion handler
+      DispatchQueue.main.asyncAfter(deadline: .now() + Double(durationMs) / 1000.0) {
+        completion(true, nil)
+      }
+      
+      print("Played system beep sound")
+    } catch {
+      print("Error playing beep: \(error.localizedDescription)")
+      completion(false, error)
     }
   }
 }

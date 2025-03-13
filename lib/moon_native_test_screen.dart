@@ -36,7 +36,6 @@ class MoonNativeTestWidget extends StatefulWidget {
 }
 
 class _MoonNativeTestWidgetState extends State<MoonNativeTestWidget> {
-  final _moonNativePlugin = MoonNative();
   final TextEditingController _videoPathController = TextEditingController();
   VideoPlayerController? _videoPlayerController;
   VideoPlayerController? _rotatedVideoController;
@@ -145,7 +144,7 @@ class _MoonNativeTestWidgetState extends State<MoonNativeTestWidget> {
       final duration = _videoPlayerController!.value.duration.inMilliseconds / 1000.0;
       final halfDuration = duration / 2;
 
-      final String? outputPath = await _moonNativePlugin.trimVideo(videoPath, 0.0, halfDuration);
+      final String? outputPath = await MoonNative.trimVideo(videoPath, 0.0, halfDuration);
       if (outputPath == null) {
         setState(() {
           _errorMessage = 'Error: Trimming failed - no output generated';
@@ -202,7 +201,7 @@ class _MoonNativeTestWidgetState extends State<MoonNativeTestWidget> {
       // Print original video file size for debugging
       print('Original video file size: ${videoFile.lengthSync()} bytes');
 
-      final String? outputPath = await _moonNativePlugin.rotateVideo(videoPath, _clockwiseQuarterTurns);
+      final String? outputPath = await MoonNative.rotateVideo(videoPath, _clockwiseQuarterTurns);
       if (outputPath == null) {
         setState(() {
           _errorMessage = 'Error: Rotation failed - no output generated';

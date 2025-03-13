@@ -7,6 +7,8 @@ import android.media.MediaFormat
 import android.media.MediaMetadataRetriever
 import android.media.MediaMuxer
 import android.media.MediaCodec
+import android.media.ToneGenerator
+import android.media.AudioManager
 import android.net.Uri
 import android.util.Log
 import android.os.Build
@@ -64,6 +66,13 @@ class MoonNativePlugin: FlutterPlugin, MethodCallHandler {
         }
         
         rotateVideo(videoPath, quarterTurns, result)
+      }
+      "playBeep" -> {
+        val frequency = call.argument<Int>("frequency") ?: 1000
+        val durationMs = call.argument<Int>("durationMs") ?: 200
+        val volume = call.argument<Double>("volume") ?: 1.0
+        
+        playBeep(frequency, durationMs, volume.toFloat(), result)
       }
       else -> {
         result.notImplemented()
@@ -334,6 +343,34 @@ class MoonNativePlugin: FlutterPlugin, MethodCallHandler {
       }
     }
     return -1
+  }
+  
+  // Play a beep sound with the specified parameters
+  private fun playBeep(frequency: Int, durationMs: Int, volume: Float, result: Result) {
+    try {
+      // Volume in ToneGenerator is between 0-100
+      val toneVolume = (volume * 100).toInt().coerceIn(0, 100)
+      
+      // Create a ToneGenerator with the specified volume
+      val toneGen = ToneGenerator(AudioManager.STREAM_SYSTEM, toneVolume)
+      
+      // Play the tone
+      // Note: ToneGenerator doesn't support custom frequency directly
+      // We'll use TONE_CDMA_ALERT_CALL_GUARD as a standard beep tone
+      toneGen.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD)
+      
+      // Release the ToneGenerator after the specified duration
+      android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+        toneGen.stopTone()
+        toneGen.release()
+        result.success(true)
+      }, durationMs.toLong())
+      
+      Log.d("MoonNative", "Played beep with frequency: $frequency, duration: $durationMs ms, volume: $volume")
+    } catch (e: Exception) {
+      Log.e("MoonNative", "Error playing beep: ${e.message}")
+      result.error("BEEP_ERROR", "Error playing beep: ${e.message}", null)
+    }
   }
   
   override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {

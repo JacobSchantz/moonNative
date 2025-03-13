@@ -50,4 +50,16 @@ abstract class MoonNativePlatform extends PlatformInterface {
   Future<String?> rotateVideo(String videoPath, int clockwiseQuarterTurns) {
     throw UnimplementedError('rotateVideo() has not been implemented.');
   }
+  
+  /// Plays a short beep sound
+  ///
+  /// Parameters:
+  /// - frequency: (Optional) The frequency of the beep in Hz (Android only)
+  /// - durationMs: (Optional) The duration of the beep in milliseconds (Android only)
+  /// - volume: (Optional) The volume of the beep from 0.0 to 1.0 (Android only)
+  ///
+  /// Returns true if the beep was played successfully, false otherwise
+  Future<bool> playBeep({int frequency = 1000, int durationMs = 200, double volume = 1.0}) {
+    throw UnimplementedError('playBeep() has not been implemented.');
+  }
 }

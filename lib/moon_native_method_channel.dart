@@ -33,4 +33,14 @@ class MethodChannelMoonNative extends MoonNativePlatform {
     };
     return await methodChannel.invokeMethod<String>('rotateVideo', args);
   }
+  
+  @override
+  Future<bool> playBeep({int frequency = 1000, int durationMs = 200, double volume = 1.0}) async {
+    final Map<String, dynamic> args = {
+      'frequency': frequency,
+      'durationMs': durationMs,
+      'volume': volume,
+    };
+    return await methodChannel.invokeMethod<bool>('playBeep', args) ?? false;
+  }
 }

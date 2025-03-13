@@ -15,7 +15,6 @@ void main() {
   });
 
   test('getPlatformVersion', () async {
-    final moonNativePlugin = MoonNative();
     final fakePlatform = MockMoonNativePlatform();
     
     // Set up the mock
@@ -26,6 +25,6 @@ void main() {
     MoonNativePlatform.instance = fakePlatform;
 
     // Verify the result
-    expect(await moonNativePlugin.getPlatformVersion(), '42');
+    expect(await MoonNative.getPlatformVersion(), '42');
   });
 }
