@@ -1,5 +1,9 @@
 import 'dart:async';
 import 'dart:typed_data';
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
+import 'package:path_provider/path_provider.dart';
 
 import 'moon_native_platform_interface.dart';
 
@@ -65,21 +69,88 @@ class MoonNative {
   /// - quality: Quality of the compressed image (0-100), where 100 is highest quality
   /// - format: (Optional) Output format ('jpg', 'png', or 'webp'), defaults to source format
   ///
-  /// Returns the path to the compressed image file or null if compression failed
+  /// Returns the path to the compressed image file or null if compression failed.
+  /// If the compressed image is larger than the original, the original image is returned.
   static Future<String?> compressImage({
     String? imagePath,
     Uint8List? imageBytes,
     required int quality,
     String? format,
-  }) {
+  }) async {
     assert(quality >= 0 && quality <= 100, 'quality must be between 0 and 100 inclusive');
     assert(imagePath != null || imageBytes != null, 'Either imagePath or imageBytes must be provided');
     
-    return MoonNativePlatform.instance.compressImage(
+    // First, compress the image using the platform implementation
+    final compressedPath = await MoonNativePlatform.instance.compressImage(
       imagePath: imagePath,
       imageBytes: imageBytes,
       quality: quality,
       format: format,
     );
+    
+    if (compressedPath == null) {
+      return null; // Compression failed
+    }
+    
+    // Compare file sizes to ensure we're not increasing the size
+    try {
+      if (imagePath != null) {
+        // For file path input, compare file sizes
+        final originalFile = File(imagePath);
+        final compressedFile = File(compressedPath);
+        
+        if (await originalFile.exists() && await compressedFile.exists()) {
+          final originalSize = await originalFile.length();
+          final compressedSize = await compressedFile.length();
+          
+          if (compressedSize > originalSize) {
+            debugPrint('MoonNative: Compression increased file size. Using original instead.');
+            debugPrint('MoonNative: Original: $originalSize bytes, Compressed: $compressedSize bytes');
+            
+            // Compression increased file size, copy original to a new location
+            final tempDir = await getTemporaryDirectory();
+            final extension = imagePath.split('.').last;
+            final outputFileName = 'uncompressed_${DateTime.now().millisecondsSinceEpoch}.$extension';
+            final outputFile = File('${tempDir.path}/$outputFileName');
+            
+            // Copy the original file
+            await originalFile.copy(outputFile.path);
+            return outputFile.path;
+          } else {
+            debugPrint('MoonNative: Compression successful, reduced size by ${originalSize - compressedSize} bytes');
+          }
+        }
+      } else if (imageBytes != null) {
+        // For bytes input, compare byte lengths
+        final compressedFile = File(compressedPath);
+        if (await compressedFile.exists()) {
+          final compressedSize = await compressedFile.length();
+          final originalSize = imageBytes.length;
+          
+          if (compressedSize > originalSize) {
+            debugPrint('MoonNative: Compression increased file size. Using original instead.');
+            debugPrint('MoonNative: Original: $originalSize bytes, Compressed: $compressedSize bytes');
+            
+            // Compression increased file size, save original bytes to a new file
+            final tempDir = await getTemporaryDirectory();
+            final extension = format?.toLowerCase() ?? 'jpg';
+            final outputFileName = 'uncompressed_${DateTime.now().millisecondsSinceEpoch}.$extension';
+            final outputFile = File('${tempDir.path}/$outputFileName');
+            
+            // Write the original bytes
+            await outputFile.writeAsBytes(imageBytes);
+            return outputFile.path;
+          } else {
+            debugPrint('MoonNative: Compression successful, reduced size by ${originalSize - compressedSize} bytes');
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('MoonNative: Error comparing file sizes: $e');
+      // If there's an error in the size comparison, just return the compressed path
+    }
+    
+    // Return the compressed path if it's smaller or equal to the original
+    return compressedPath;
   }
 }
