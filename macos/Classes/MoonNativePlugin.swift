@@ -50,7 +50,8 @@ public class MoonNativePlugin: NSObject, FlutterPlugin {
         }
       }
       
-    case "compressImage":
+    // Handle both method names for image compression from path
+    case "compressImage", "compressImageFromPath":
       guard let args = call.arguments as? [String: Any],
             let quality = args["quality"] as? Int else {
         result(FlutterError(code: "INVALID_ARGS", message: "Quality is required for image compression", details: nil))
@@ -95,6 +96,38 @@ public class MoonNativePlugin: NSObject, FlutterPlugin {
           } else {
             result(outputPath)
           }
+        }
+      }
+    
+    // Handle bytes-specific compression method
+    case "compressImageFromBytes":
+      guard let args = call.arguments as? [String: Any],
+            let quality = args["quality"] as? Int,
+            let imageBytes = args["imageBytes"] as? FlutterStandardTypedData else {
+        result(FlutterError(code: "INVALID_ARGS", message: "Quality and imageBytes are required for image compression", details: nil))
+        return
+      }
+      
+      let format = args["format"] as? String
+      
+      // Check if bytes are empty
+      if imageBytes.data.isEmpty {
+        result(FlutterError(code: "INVALID_ARGS", message: "Image bytes cannot be empty", details: nil))
+        return
+      }
+      
+      compressImageFromBytes(
+        imageBytes: imageBytes.data,
+        quality: quality,
+        format: format
+      ) { outputData, error in
+        if let error = error {
+          result(FlutterError(code: "COMPRESSION_ERROR", message: error.localizedDescription, details: nil))
+        } else if let data = outputData {
+          // Return the actual bytes data instead of a file path
+          result(FlutterStandardTypedData(bytes: data))
+        } else {
+          result(FlutterError(code: "COMPRESSION_ERROR", message: "Failed to compress image", details: nil))
         }
       }
       
@@ -322,33 +355,21 @@ public class MoonNativePlugin: NSObject, FlutterPlugin {
   ///   - imageBytes: Raw bytes of the image
   ///   - quality: Quality of the compressed image (0-100)
   ///   - format: Output format (jpg, png, webp) (optional)
-  ///   - completion: Callback with the output path or error
+  ///   - completion: Callback with the compressed image data or error
   private func compressImageFromBytes(
     imageBytes: Data,
     quality: Int,
     format: String?,
-    completion: @escaping (String?, Error?) -> Void
+    completion: @escaping (Data?, Error?) -> Void
   ) {
     // Use a background queue for image processing
     DispatchQueue.global(qos: .userInitiated).async {
       do {
         print("Processing image bytes of size: \(imageBytes.count)")
         
-        // First, try to save the bytes to a temporary file for debugging
-        let tempFileName = "temp_image_\(UUID().uuidString).jpg"
-        let tempPath = NSTemporaryDirectory() + tempFileName
-        let tempURL = URL(fileURLWithPath: tempPath)
-        try imageBytes.write(to: tempURL)
-        print("Saved image bytes to temporary file: \(tempPath)")
-        
         // Load the image from bytes
         guard let imageSource = CGImageSourceCreateWithData(imageBytes as CFData, nil) else {
           throw NSError(domain: "com.moonnative", code: 600, userInfo: [NSLocalizedDescriptionKey: "Failed to create image source from bytes"])
-        }
-        
-        // Get image properties to verify the data
-        if let properties = CGImageSourceCopyPropertiesAtIndex(imageSource, 0, nil) as? [String: Any] {
-          print("Image properties: \(properties)")
         }
         
         guard let cgImage = CGImageSourceCreateImageAtIndex(imageSource, 0, nil) else {
@@ -359,17 +380,47 @@ public class MoonNativePlugin: NSObject, FlutterPlugin {
         let originalImage = NSImage(cgImage: cgImage, size: NSSize(width: CGFloat(cgImage.width), height: CGFloat(cgImage.height)))
         print("Successfully created NSImage from bytes with size: \(originalImage.size)")
         
-        // Debug: Try to save the original image directly to verify it's valid
-        let debugBitmapRep = NSBitmapImageRep(cgImage: cgImage)
-        if let debugJpegData = debugBitmapRep.representation(using: .jpeg, properties: [.compressionFactor: NSNumber(value: 0.9)]) {
-          let debugPath = NSTemporaryDirectory() + "debug_original_\(UUID().uuidString).jpg"
-          let debugURL = URL(fileURLWithPath: debugPath)
-          try debugJpegData.write(to: debugURL)
-          print("Saved debug image to: \(debugPath)")
+        // Determine output format
+        let outputFormat: String
+        if let format = format?.lowercased() {
+          outputFormat = format
+        } else {
+          // Default to jpg for bytes
+          outputFormat = "jpg"
         }
         
-        // Process the image - default to jpg for bytes since we don't have a file extension
-        self.processAndSaveImage(image: originalImage, quality: quality, format: format, sourcePathExtension: "jpg", completion: completion)
+        // Convert quality from 0-100 scale to 0.0-1.0 scale
+        let compressionQuality = Float(quality) / 100.0
+        
+        // Convert NSImage to CGImage
+        guard let cgImageRepresentation = originalImage.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+          throw NSError(domain: "com.moonnative", code: 601, userInfo: [NSLocalizedDescriptionKey: "Failed to convert NSImage to CGImage"])
+        }
+        
+        // Create a bitmap representation
+        let bitmapRep = NSBitmapImageRep(cgImage: cgImageRepresentation)
+        
+        // Compress the image based on format
+        var compressedData: Data?
+        switch outputFormat {
+        case "png":
+          compressedData = bitmapRep.representation(using: .png, properties: [:])
+        case "webp":
+          // macOS doesn't natively support WebP, so we'll use JPEG instead
+          print("WebP format not natively supported on macOS, using JPEG instead")
+          compressedData = bitmapRep.representation(using: .jpeg, properties: [.compressionFactor: NSNumber(value: compressionQuality)])
+        case "jpg", "jpeg", _:
+          compressedData = bitmapRep.representation(using: .jpeg, properties: [.compressionFactor: NSNumber(value: compressionQuality)])
+        }
+        
+        guard let finalData = compressedData else {
+          throw NSError(domain: "com.moonnative", code: 602, userInfo: [NSLocalizedDescriptionKey: "Failed to create compressed image data"])
+        }
+        
+        // Return the compressed data on the main thread
+        DispatchQueue.main.async {
+          completion(finalData, nil)
+        }
       } catch {
         print("Error processing image bytes: \(error.localizedDescription)")
         // Return the error on the main thread

@@ -79,7 +79,8 @@ class MoonNativePlugin: FlutterPlugin, MethodCallHandler {
         
         playBeep(frequency, durationMs, volume.toFloat(), result)
       }
-      "compressImage" -> {
+      // Handle both method names for image compression from path
+      "compressImage", "compressImageFromPath" -> {
         val imagePath = call.argument<String>("imagePath")
         val imageBytes = call.argument<ByteArray>("imageBytes")
         val quality = call.argument<Int>("quality")
@@ -102,12 +103,38 @@ class MoonNativePlugin: FlutterPlugin, MethodCallHandler {
             // Check if bytes are empty
             if (imageBytes.isEmpty()) {
               result.error("INVALID_ARGS", "Image bytes cannot be empty", null)
-              return@Runnable
+              return
             }
             compressImageFromBytes(imageBytes, quality, format, result)
           }
         } catch (e: Exception) {
           Log.e("MoonNative", "Error in compressImage: ${e.message}")
+          e.printStackTrace()
+          result.error("COMPRESSION_ERROR", "Error compressing image: ${e.message}", null)
+        }
+      }
+      
+      // Handle bytes-specific compression method
+      "compressImageFromBytes" -> {
+        val imageBytes = call.argument<ByteArray>("imageBytes")
+        val quality = call.argument<Int>("quality")
+        val format = call.argument<String>("format")
+        
+        if (quality == null || imageBytes == null) {
+          result.error("INVALID_ARGS", "Quality and imageBytes are required", null)
+          return
+        }
+        
+        // Check if bytes are empty
+        if (imageBytes.isEmpty()) {
+          result.error("INVALID_ARGS", "Image bytes cannot be empty", null)
+          return
+        }
+        
+        try {
+          compressImageFromBytes(imageBytes, quality, format, result)
+        } catch (e: Exception) {
+          Log.e("MoonNative", "Error in compressImageFromBytes: ${e.message}")
           e.printStackTrace()
           result.error("COMPRESSION_ERROR", "Error compressing image: ${e.message}", null)
         }
@@ -523,29 +550,19 @@ class MoonNativePlugin: FlutterPlugin, MethodCallHandler {
             else -> Bitmap.CompressFormat.JPEG // Default to JPEG
           }
           
-          // Create a unique output file in app's cache directory
-          val outputDir = context.cacheDir
-          val extension = when (outputFormat) {
-            Bitmap.CompressFormat.PNG -> "png"
-            Bitmap.CompressFormat.JPEG -> "jpg"
-            else -> "webp"
-          }
-          val outputFileName = "compressed_${UUID.randomUUID()}.$extension"
-          val outputFile = File(outputDir, outputFileName)
-          val outputPath = outputFile.absolutePath
+          // Compress the bitmap directly to a ByteArrayOutputStream
+          val byteArrayOutputStream = ByteArrayOutputStream()
+          bitmap.compress(outputFormat, quality, byteArrayOutputStream)
           
-          // Compress the bitmap to the output file
-          FileOutputStream(outputFile).use { fos ->
-            bitmap.compress(outputFormat, quality, fos)
-            fos.flush()
-          }
+          // Get the compressed bytes
+          val compressedBytes = byteArrayOutputStream.toByteArray()
           
           // Recycle the bitmap to free memory
           bitmap.recycle()
           
-          Log.d("MoonNative", "Image compression completed successfully")
+          Log.d("MoonNative", "Image compression completed successfully, compressed size: ${compressedBytes.size} bytes")
           android.os.Handler(android.os.Looper.getMainLooper()).post {
-            result.success(outputPath)
+            result.success(compressedBytes)
           }
       } catch (e: Exception) {
           Log.e("MoonNative", "Error processing bitmap: ${e.message}")

@@ -26,7 +26,7 @@ class MethodChannelMoonNative extends MoonNativePlatform {
     };
     return await methodChannel.invokeMethod<String>('trimVideo', args);
   }
-  
+
   @override
   Future<String?> rotateVideo(String videoPath, int clockwiseQuarterTurns) async {
     final Map<String, dynamic> args = {
@@ -35,7 +35,7 @@ class MethodChannelMoonNative extends MoonNativePlatform {
     };
     return await methodChannel.invokeMethod<String>('rotateVideo', args);
   }
-  
+
   @override
   Future<bool> playBeep({int frequency = 1000, int durationMs = 200, double volume = 1.0}) async {
     final Map<String, dynamic> args = {
@@ -45,32 +45,39 @@ class MethodChannelMoonNative extends MoonNativePlatform {
     };
     return await methodChannel.invokeMethod<bool>('playBeep', args) ?? false;
   }
-  
+
   @override
-  Future<String?> compressImage({
-    String? imagePath,
-    Uint8List? imageBytes,
+  Future<String?> compressImageFromPath({
+    required String imagePath,
     required int quality,
     String? format,
   }) async {
     final Map<String, dynamic> args = {
+      'imagePath': imagePath,
       'quality': quality,
       'format': format,
     };
-    
-    // Add either imagePath or imageBytes to the arguments
-    if (imagePath != null) {
-      args['imagePath'] = imagePath;
-    } else if (imageBytes != null) {
-      // Validate that the bytes are not empty
-      if (imageBytes.isEmpty) {
-        throw ArgumentError('Image bytes cannot be empty');
-      }
-      args['imageBytes'] = imageBytes;
-    } else {
-      throw ArgumentError('Either imagePath or imageBytes must be provided');
+
+    return await methodChannel.invokeMethod<String>('compressImageFromPath', args);
+  }
+
+  @override
+  Future<Uint8List?> compressImageFromBytes({
+    required Uint8List imageBytes,
+    required int quality,
+    String? format,
+  }) async {
+    // Validate that the bytes are not empty
+    if (imageBytes.isEmpty) {
+      throw ArgumentError('Image bytes cannot be empty');
     }
     
-    return await methodChannel.invokeMethod<String>('compressImage', args);
+    final Map<String, dynamic> args = {
+      'imageBytes': imageBytes,
+      'quality': quality,
+      'format': format,
+    };
+
+    return await methodChannel.invokeMethod<Uint8List>('compressImageFromBytes', args);
   }
 }

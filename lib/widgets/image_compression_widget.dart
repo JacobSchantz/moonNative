@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:moon_native/moon_native.dart';
 import 'package:moon_native/services/image_service.dart';
 import 'package:path_provider/path_provider.dart';
@@ -24,7 +25,7 @@ class _ImageCompressionWidgetState extends State<ImageCompressionWidget> {
   String? _errorMessage;
   Uint8List? _originalImageBytes;
   String? _compressedImagePath;
-  String? _compressedImagePathFromBytes;
+  Uint8List? _compressedImageBytes; // Store bytes directly instead of path
   String? _compressionRatio;
   String? _compressionRatioFromBytes;
   int _imageQuality = 80;
@@ -104,7 +105,7 @@ class _ImageCompressionWidgetState extends State<ImageCompressionWidget> {
             ),
             
             // Image preview
-            if (_originalImageBytes != null && _compressedImagePath != null && _compressedImagePathFromBytes != null)
+            if (_originalImageBytes != null && _compressedImagePath != null && _compressedImageBytes != null)
               Column(
                 children: [
                   // Original image
@@ -162,10 +163,12 @@ class _ImageCompressionWidgetState extends State<ImageCompressionWidget> {
                             SizedBox(
                               height: 150,
                               child: Center(
-                                child: Image.file(
-                                  File(_compressedImagePathFromBytes!),
-                                  fit: BoxFit.contain,
-                                ),
+                                child: _compressedImageBytes != null
+                                  ? Image.memory(
+                                      _compressedImageBytes!,
+                                      fit: BoxFit.contain,
+                                    )
+                                  : const Text('No image available'),
                               ),
                             ),
                           ],
@@ -180,9 +183,34 @@ class _ImageCompressionWidgetState extends State<ImageCompressionWidget> {
             if (_errorMessage != null)
               Padding(
                 padding: const EdgeInsets.only(top: 8.0),
-                child: Text(
-                  _errorMessage!,
-                  style: const TextStyle(color: Colors.red),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.all(8.0),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(4.0),
+                          border: Border.all(color: Colors.red.withOpacity(0.3)),
+                        ),
+                        child: SelectableText(
+                          _errorMessage!,
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.copy, size: 20),
+                      tooltip: 'Copy error message',
+                      onPressed: () {
+                        // Using Flutter's clipboard functionality
+                        Clipboard.setData(ClipboardData(text: _errorMessage!));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Error message copied to clipboard')),
+                        );
+                      },
+                    ),
+                  ],
                 ),
               ),
           ],
@@ -209,8 +237,8 @@ class _ImageCompressionWidgetState extends State<ImageCompressionWidget> {
       _tempImagePath = tempFile.path;
       
       // Method 1: Compress using path
-      final pathResult = await MoonNative.compressImage(
-        imagePath: _tempImagePath,
+      final pathResult = await MoonNative.compressImageFromPath(
+        imagePath: _tempImagePath!,
         quality: _imageQuality,
         format: _imageFormat,
       );
@@ -220,27 +248,27 @@ class _ImageCompressionWidgetState extends State<ImageCompressionWidget> {
       }
       
       // Method 2: Compress using bytes
-      final bytesResult = await MoonNative.compressImage(
+      final compressedBytes = await MoonNative.compressImageFromBytes(
         imageBytes: imageBytes,
         quality: _imageQuality,
         format: _imageFormat,
       );
       
-      if (bytesResult == null) {
+      if (compressedBytes == null) {
         throw Exception('Bytes-based compression failed');
       }
       
       // Calculate compression ratios
       final originalSize = imageBytes.length;
       final pathCompressedSize = File(pathResult).lengthSync();
-      final bytesCompressedSize = File(bytesResult).lengthSync();
+      final bytesCompressedSize = compressedBytes.length;
       
       final pathRatio = originalSize / pathCompressedSize;
       final bytesRatio = originalSize / bytesCompressedSize;
       
       setState(() {
         _compressedImagePath = pathResult;
-        _compressedImagePathFromBytes = bytesResult;
+        _compressedImageBytes = compressedBytes; // Store bytes directly
         _compressionRatio = '${pathRatio.toStringAsFixed(2)}x (${(originalSize / 1024).toStringAsFixed(2)} KB → ${(pathCompressedSize / 1024).toStringAsFixed(2)} KB)';
         _compressionRatioFromBytes = '${bytesRatio.toStringAsFixed(2)}x (${(originalSize / 1024).toStringAsFixed(2)} KB → ${(bytesCompressedSize / 1024).toStringAsFixed(2)} KB)';
         _isLoading = false;

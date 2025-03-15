@@ -65,25 +65,84 @@ public class MoonNativePlugin: NSObject, FlutterPlugin {
         }
       }
       
-    case "compressImage":
+    // Handle both method names for image compression from path
+    case "compressImage", "compressImageFromPath":
       guard let args = call.arguments as? [String: Any],
-            let imagePath = args["imagePath"] as? String,
             let quality = args["quality"] as? Int else {
+        result(FlutterError(code: "INVALID_ARGS", message: "Quality is required for image compression", details: nil))
+        return
+      }
+      
+      let format = args["format"] as? String
+      let imagePath = args["imagePath"] as? String
+      let imageBytes = args["imageBytes"] as? FlutterStandardTypedData
+      
+      if imagePath == nil && imageBytes == nil {
         result(FlutterError(code: "INVALID_ARGS", message: "Invalid arguments for image compression", details: nil))
+        return
+      }
+      
+      if let path = imagePath {
+        compressImage(
+          imagePath: path,
+          quality: quality,
+          format: format
+        ) { outputPath, error in
+          if let error = error {
+            result(FlutterError(code: "COMPRESSION_ERROR", message: error.localizedDescription, details: nil))
+          } else {
+            result(outputPath)
+          }
+        }
+      } else if let bytes = imageBytes {
+        // Check if bytes are empty
+        if bytes.data.isEmpty {
+          result(FlutterError(code: "INVALID_ARGS", message: "Image bytes cannot be empty", details: nil))
+          return
+        }
+        
+        compressImageFromBytes(
+          imageBytes: bytes.data,
+          quality: quality,
+          format: format
+        ) { outputPath, error in
+          if let error = error {
+            result(FlutterError(code: "COMPRESSION_ERROR", message: error.localizedDescription, details: nil))
+          } else {
+            result(outputPath)
+          }
+        }
+      }
+      
+    // Handle bytes-specific compression method
+    case "compressImageFromBytes":
+      guard let args = call.arguments as? [String: Any],
+            let quality = args["quality"] as? Int,
+            let imageBytes = args["imageBytes"] as? FlutterStandardTypedData else {
+        result(FlutterError(code: "INVALID_ARGS", message: "Quality and imageBytes are required for image compression", details: nil))
         return
       }
       
       let format = args["format"] as? String
       
-      compressImage(
-        imagePath: imagePath,
+      // Check if bytes are empty
+      if imageBytes.data.isEmpty {
+        result(FlutterError(code: "INVALID_ARGS", message: "Image bytes cannot be empty", details: nil))
+        return
+      }
+      
+      compressImageFromBytes(
+        imageBytes: imageBytes.data,
         quality: quality,
         format: format
-      ) { outputPath, error in
+      ) { outputData, error in
         if let error = error {
           result(FlutterError(code: "COMPRESSION_ERROR", message: error.localizedDescription, details: nil))
+        } else if let data = outputData {
+          // Return the actual bytes data instead of a file path
+          result(FlutterStandardTypedData(bytes: data))
         } else {
-          result(outputPath)
+          result(FlutterError(code: "COMPRESSION_ERROR", message: "Failed to compress image", details: nil))
         }
       }
     
@@ -371,5 +430,77 @@ public class MoonNativePlugin: NSObject, FlutterPlugin {
     }
   }
   
+  /// Compresses an image from bytes with the specified parameters
+  /// - Parameters:
+  ///   - imageBytes: Raw bytes of the image
+  ///   - quality: Quality of the compressed image (0-100)
+  ///   - format: Output format (jpg, png, webp) (optional)
+  ///   - completion: Callback with the compressed image data or error
+  private func compressImageFromBytes(
+    imageBytes: Data,
+    quality: Int,
+    format: String?,
+    completion: @escaping (Data?, Error?) -> Void
+  ) {
+    // Use a background queue for image processing
+    DispatchQueue.global(qos: .userInitiated).async {
+      do {
+        print("Processing image bytes of size: \(imageBytes.count)")
+        
+        // Load the image from bytes
+        guard let image = UIImage(data: imageBytes) else {
+          throw NSError(domain: "com.moonnative", code: 600, userInfo: [NSLocalizedDescriptionKey: "Failed to create image from bytes"])
+        }
+        
+        print("Successfully created UIImage from bytes with size: \(image.size)")
+        
+        // Use the original image without resizing
+        let processedImage = image
+        
+        // Determine output format
+        let outputFormat: String
+        if let format = format?.lowercased() {
+          outputFormat = format
+        } else {
+          // Default to jpg for bytes since we don't have a file extension
+          outputFormat = "jpg"
+        }
+        
+        // Convert quality from 0-100 scale to 0.0-1.0 scale
+        let compressionQuality = Float(quality) / 100.0
+        
+        // Compress the image based on format and return the data directly
+        var compressedData: Data?
+        
+        switch outputFormat {
+        case "png":
+          compressedData = processedImage.pngData()
+          
+        case "webp":
+          // iOS doesn't natively support WebP, so we'll use JPEG instead
+          print("WebP format not natively supported on iOS, using JPEG instead")
+          compressedData = processedImage.jpegData(compressionQuality: CGFloat(compressionQuality))
+          
+        case "jpg", "jpeg", _:
+          compressedData = processedImage.jpegData(compressionQuality: CGFloat(compressionQuality))
+        }
+        
+        guard let finalData = compressedData else {
+          throw NSError(domain: "com.moonnative", code: 602, userInfo: [NSLocalizedDescriptionKey: "Failed to create compressed image data"])
+        }
+        
+        // Return the compressed data on the main thread
+        DispatchQueue.main.async {
+          completion(finalData, nil)
+        }
+      } catch {
+        print("Error processing image bytes: \(error.localizedDescription)")
+        // Return the error on the main thread
+        DispatchQueue.main.async {
+          completion(nil, error)
+        }
+      }
+    }
+  }
 
 }

@@ -40,7 +40,7 @@ abstract class MoonNativePlatform extends PlatformInterface {
   Future<String?> trimVideo(String videoPath, double startTime, double endTime) {
     throw UnimplementedError('trimVideo() has not been implemented.');
   }
-  
+
   /// Rotates a video by the specified clockwise quarter turns
   ///
   /// Parameters:
@@ -52,7 +52,7 @@ abstract class MoonNativePlatform extends PlatformInterface {
   Future<String?> rotateVideo(String videoPath, int clockwiseQuarterTurns) {
     throw UnimplementedError('rotateVideo() has not been implemented.');
   }
-  
+
   /// Plays a short beep sound
   ///
   /// Parameters:
@@ -64,22 +64,36 @@ abstract class MoonNativePlatform extends PlatformInterface {
   Future<bool> playBeep({int frequency = 1000, int durationMs = 200, double volume = 1.0}) {
     throw UnimplementedError('playBeep() has not been implemented.');
   }
-  
-  /// Compresses an image file or bytes
+
+  /// Compresses an image file from a path
   ///
   /// Parameters:
-  /// - imagePath: Path to the input image file (provide either imagePath or imageBytes)
-  /// - imageBytes: Raw bytes of the input image (provide either imagePath or imageBytes)
+  /// - imagePath: Path to the input image file
   /// - quality: Quality of the compressed image (0-100), where 100 is highest quality
   /// - format: (Optional) Output format ('jpg', 'png', or 'webp'), defaults to source format
   ///
   /// Returns the path to the compressed image file
-  Future<String?> compressImage({
-    String? imagePath, 
-    Uint8List? imageBytes,
-    required int quality, 
+  Future<String?> compressImageFromPath({
+    required String imagePath,
+    required int quality,
     String? format,
   }) {
-    throw UnimplementedError('compressImage() has not been implemented.');
+    throw UnimplementedError('compressImageFromPath() has not been implemented.');
+  }
+
+  /// Compresses an image from bytes
+  ///
+  /// Parameters:
+  /// - imageBytes: Raw bytes of the input image
+  /// - quality: Quality of the compressed image (0-100), where 100 is highest quality
+  /// - format: (Optional) Output format ('jpg', 'png', or 'webp'), defaults to 'jpg' if not specified
+  ///
+  /// Returns the compressed image as bytes
+  Future<Uint8List?> compressImageFromBytes({
+    required Uint8List imageBytes,
+    required int quality,
+    String? format,
+  }) {
+    throw UnimplementedError('compressImageFromBytes() has not been implemented.');
   }
 }

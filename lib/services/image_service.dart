@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:moon_native/moon_native.dart';
+import 'package:path_provider/path_provider.dart';
 
 class ImageService {
   Future<Uint8List> downloadImageBytes(String imageUrl) async {
@@ -18,24 +19,29 @@ class ImageService {
     required int quality,
     String format = 'jpg',
   }) async {
-    final compressedPath = await MoonNative.compressImage(
+    final compressedBytes = await MoonNative.compressImageFromBytes(
       imageBytes: imageBytes,
       quality: quality,
       format: format,
     );
     
-    if (compressedPath == null) {
+    if (compressedBytes == null) {
       throw Exception('Image compression failed');
     }
     
-    final compressedFile = File(compressedPath);
-    final compressedSize = compressedFile.lengthSync();
+    // Save the compressed bytes to a temporary file to maintain compatibility
+    final tempDir = await getTemporaryDirectory();
+    final outputFileName = 'compressed_${DateTime.now().millisecondsSinceEpoch}.$format';
+    final outputFile = File('${tempDir.path}/$outputFileName');
+    await outputFile.writeAsBytes(compressedBytes);
+    
+    final compressedSize = compressedBytes.length;
     final originalSize = imageBytes.length;
     final ratio = originalSize / compressedSize;
     
     return CompressedImageResult(
       originalBytes: imageBytes,
-      compressedPath: compressedPath,
+      compressedPath: outputFile.path,
       originalSize: originalSize,
       compressedSize: compressedSize,
       compressionRatio: ratio,
