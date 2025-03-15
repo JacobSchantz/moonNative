@@ -3,6 +3,7 @@ import UIKit
 import Foundation
 import AVFoundation
 import AudioToolbox
+import CoreImage
 
 public class MoonNativePlugin: NSObject, FlutterPlugin {
   public static func register(with registrar: FlutterPluginRegistrar) {
@@ -61,6 +62,28 @@ public class MoonNativePlugin: NSObject, FlutterPlugin {
           result(FlutterError(code: "BEEP_ERROR", message: error.localizedDescription, details: nil))
         } else {
           result(success)
+        }
+      }
+      
+    case "compressImage":
+      guard let args = call.arguments as? [String: Any],
+            let imagePath = args["imagePath"] as? String,
+            let quality = args["quality"] as? Int else {
+        result(FlutterError(code: "INVALID_ARGS", message: "Invalid arguments for image compression", details: nil))
+        return
+      }
+      
+      let format = args["format"] as? String
+      
+      compressImage(
+        imagePath: imagePath,
+        quality: quality,
+        format: format
+      ) { outputPath, error in
+        if let error = error {
+          result(FlutterError(code: "COMPRESSION_ERROR", message: error.localizedDescription, details: nil))
+        } else {
+          result(outputPath)
         }
       }
     
@@ -269,4 +292,84 @@ public class MoonNativePlugin: NSObject, FlutterPlugin {
       completion(false, error)
     }
   }
+  
+  /// Compresses an image file with the specified parameters
+  /// - Parameters:
+  ///   - imagePath: Path to the source image file
+  ///   - quality: Quality of the compressed image (0-100)
+  ///   - format: Output format (jpg, png, webp) (optional)
+  ///   - completion: Callback with the output path or error
+  private func compressImage(
+    imagePath: String,
+    quality: Int,
+    format: String?,
+    completion: @escaping (String?, Error?) -> Void
+  ) {
+    // Use a background queue for image processing
+    DispatchQueue.global(qos: .userInitiated).async {
+      do {
+        // Load the image from file
+        guard let image = UIImage(contentsOfFile: imagePath) else {
+          throw NSError(domain: "com.moonnative", code: 600, userInfo: [NSLocalizedDescriptionKey: "Failed to load image"])
+        }
+        
+        // Use the original image without resizing
+        let processedImage = image
+        
+        // Determine output format
+        let outputFormat: String
+        if let format = format?.lowercased() {
+          outputFormat = format
+        } else {
+          // Extract extension from the original file
+          let pathExtension = URL(fileURLWithPath: imagePath).pathExtension.lowercased()
+          outputFormat = (pathExtension == "png" || pathExtension == "webp") ? pathExtension : "jpg"
+        }
+        
+        // Create a temporary file path for the output
+        let outputFileName = "compressed_\(UUID().uuidString).\(outputFormat)"
+        let outputPath = NSTemporaryDirectory() + outputFileName
+        let outputURL = URL(fileURLWithPath: outputPath)
+        
+        // Convert quality from 0-100 scale to 0.0-1.0 scale
+        let compressionQuality = Float(quality) / 100.0
+        
+        // Compress and save the image based on format
+        switch outputFormat {
+        case "png":
+          guard let pngData = processedImage.pngData() else {
+            throw NSError(domain: "com.moonnative", code: 601, userInfo: [NSLocalizedDescriptionKey: "Failed to create PNG data"])
+          }
+          try pngData.write(to: outputURL)
+          
+        case "webp":
+          // iOS doesn't natively support WebP, so we'll use JPEG instead
+          // and inform the user
+          print("WebP format not natively supported on iOS, using JPEG instead")
+          guard let jpegData = processedImage.jpegData(compressionQuality: CGFloat(compressionQuality)) else {
+            throw NSError(domain: "com.moonnative", code: 602, userInfo: [NSLocalizedDescriptionKey: "Failed to create JPEG data"])
+          }
+          try jpegData.write(to: outputURL)
+          
+        case "jpg", "jpeg", _:
+          guard let jpegData = processedImage.jpegData(compressionQuality: CGFloat(compressionQuality)) else {
+            throw NSError(domain: "com.moonnative", code: 602, userInfo: [NSLocalizedDescriptionKey: "Failed to create JPEG data"])
+          }
+          try jpegData.write(to: outputURL)
+        }
+        
+        // Return the output path on the main thread
+        DispatchQueue.main.async {
+          completion(outputPath, nil)
+        }
+      } catch {
+        // Return the error on the main thread
+        DispatchQueue.main.async {
+          completion(nil, error)
+        }
+      }
+    }
+  }
+  
+
 }

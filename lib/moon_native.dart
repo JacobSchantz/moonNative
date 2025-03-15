@@ -1,5 +1,7 @@
-import 'moon_native_platform_interface.dart';
 import 'dart:async';
+import 'dart:typed_data';
+
+import 'moon_native_platform_interface.dart';
 
 // Export test screen so it can be imported in other projects
 export 'moon_native_test_screen.dart';
@@ -52,6 +54,32 @@ class MoonNative {
       frequency: frequency,
       durationMs: durationMs,
       volume: volume,
+    );
+  }
+  
+  /// Compresses an image from a file path or bytes
+  ///
+  /// Parameters:
+  /// - imagePath: Path to the input image file (provide either imagePath or imageBytes)
+  /// - imageBytes: Raw bytes of the input image (provide either imagePath or imageBytes)
+  /// - quality: Quality of the compressed image (0-100), where 100 is highest quality
+  /// - format: (Optional) Output format ('jpg', 'png', or 'webp'), defaults to source format
+  ///
+  /// Returns the path to the compressed image file or null if compression failed
+  static Future<String?> compressImage({
+    String? imagePath,
+    Uint8List? imageBytes,
+    required int quality,
+    String? format,
+  }) {
+    assert(quality >= 0 && quality <= 100, 'quality must be between 0 and 100 inclusive');
+    assert(imagePath != null || imageBytes != null, 'Either imagePath or imageBytes must be provided');
+    
+    return MoonNativePlatform.instance.compressImage(
+      imagePath: imagePath,
+      imageBytes: imageBytes,
+      quality: quality,
+      format: format,
     );
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 import 'moon_native_method_channel.dart';
@@ -61,5 +63,23 @@ abstract class MoonNativePlatform extends PlatformInterface {
   /// Returns true if the beep was played successfully, false otherwise
   Future<bool> playBeep({int frequency = 1000, int durationMs = 200, double volume = 1.0}) {
     throw UnimplementedError('playBeep() has not been implemented.');
+  }
+  
+  /// Compresses an image file or bytes
+  ///
+  /// Parameters:
+  /// - imagePath: Path to the input image file (provide either imagePath or imageBytes)
+  /// - imageBytes: Raw bytes of the input image (provide either imagePath or imageBytes)
+  /// - quality: Quality of the compressed image (0-100), where 100 is highest quality
+  /// - format: (Optional) Output format ('jpg', 'png', or 'webp'), defaults to source format
+  ///
+  /// Returns the path to the compressed image file
+  Future<String?> compressImage({
+    String? imagePath, 
+    Uint8List? imageBytes,
+    required int quality, 
+    String? format,
+  }) {
+    throw UnimplementedError('compressImage() has not been implemented.');
   }
 }

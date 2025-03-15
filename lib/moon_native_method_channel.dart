@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
@@ -42,5 +44,33 @@ class MethodChannelMoonNative extends MoonNativePlatform {
       'volume': volume,
     };
     return await methodChannel.invokeMethod<bool>('playBeep', args) ?? false;
+  }
+  
+  @override
+  Future<String?> compressImage({
+    String? imagePath,
+    Uint8List? imageBytes,
+    required int quality,
+    String? format,
+  }) async {
+    final Map<String, dynamic> args = {
+      'quality': quality,
+      'format': format,
+    };
+    
+    // Add either imagePath or imageBytes to the arguments
+    if (imagePath != null) {
+      args['imagePath'] = imagePath;
+    } else if (imageBytes != null) {
+      // Validate that the bytes are not empty
+      if (imageBytes.isEmpty) {
+        throw ArgumentError('Image bytes cannot be empty');
+      }
+      args['imageBytes'] = imageBytes;
+    } else {
+      throw ArgumentError('Either imagePath or imageBytes must be provided');
+    }
+    
+    return await methodChannel.invokeMethod<String>('compressImage', args);
   }
 }

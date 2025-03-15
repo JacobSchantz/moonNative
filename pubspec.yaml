@@ -82,15 +82,14 @@ flutter:
       web:
         pluginClass: MoonNativeWeb # JavaScript plugin class name
         fileName: moon_native_web.dart # Dart file containing web implementation
-        
+
       # Windows platform integration
       windows:
         pluginClass: MoonNativePlugin
-        
+
       # Linux platform integration
       linux:
         pluginClass: MoonNativePlugin
-
 
     # If assets are needed for this plugin, uncomment and add them here:
   # assets:
