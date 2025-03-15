@@ -515,7 +515,6 @@ class MoonNativePlugin: FlutterPlugin, MethodCallHandler {
         }
         
         processAndSaveBitmap(bitmap, quality, format, result)
-        }
       } catch (e: Exception) {
         Log.e("MoonNative", "Error compressing image from bytes: ${e.message}")
         e.printStackTrace()
