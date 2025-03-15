@@ -561,6 +561,7 @@ class MoonNativePlugin: FlutterPlugin, MethodCallHandler {
           
           Log.d("MoonNative", "Image compression completed successfully, compressed size: ${compressedBytes.size} bytes")
           android.os.Handler(android.os.Looper.getMainLooper()).post {
+            // Return the byte array directly - Flutter will handle it as Uint8List
             result.success(compressedBytes)
           }
       } catch (e: Exception) {
