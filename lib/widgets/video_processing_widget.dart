@@ -4,43 +4,138 @@ import 'package:video_player/video_player.dart';
 import 'package:moon_native/services/video_service.dart';
 
 class VideoProcessingWidget extends StatefulWidget {
-  final String defaultVideoUrl;
-  
   const VideoProcessingWidget({
-    Key? key, 
+    Key? key,
     required this.defaultVideoUrl,
   }) : super(key: key);
+
+  final String defaultVideoUrl;
 
   @override
   State<VideoProcessingWidget> createState() => _VideoProcessingWidgetState();
 }
 
 class _VideoProcessingWidgetState extends State<VideoProcessingWidget> {
-  final VideoService _videoService = VideoService();
-  
-  VideoPlayerController? _videoPlayerController;
-  VideoPlayerController? _processedVideoController;
-  
-  String? _videoPath;
-  String _videoDuration = 'Duration unknown';
+  int _clockwiseQuarterTurns = 1;
+  double _endTime = 10;
   String? _errorMessage;
-  
   bool _isDownloading = false;
   bool _isProcessing = false;
   bool _isTrimming = false;
-  int _clockwiseQuarterTurns = 1;
-  
+  VideoPlayerController? _processedVideoController;
   // Trim settings
   double _startTime = 0;
-  double _endTime = 10;
-  
+
+  String _videoDuration = 'Duration unknown';
+  String? _videoPath;
+  VideoPlayerController? _videoPlayerController;
+  final VideoService _videoService = VideoService();
+
   @override
   void dispose() {
     _videoPlayerController?.dispose();
     _processedVideoController?.dispose();
     super.dispose();
   }
-  
+
+  Future<void> _downloadVideo() async {
+    setState(() {
+      _isDownloading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final videoPath = await _videoService.downloadVideo(widget.defaultVideoUrl);
+
+      // Initialize video player
+      final controller = VideoPlayerController.file(File(videoPath));
+      await controller.initialize();
+
+      // Get video duration
+      final duration = controller.value.duration;
+
+      setState(() {
+        _videoPath = videoPath;
+        _videoPlayerController = controller;
+        _videoDuration = '${duration.inMinutes}:${(duration.inSeconds % 60).toString().padLeft(2, '0')}';
+        _endTime = duration.inSeconds.toDouble().clamp(0, 60);
+        _isDownloading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Error: ${e.toString()}';
+        _isDownloading = false;
+      });
+    }
+  }
+
+  Future<void> _trimVideo() async {
+    if (_videoPath == null) return;
+
+    setState(() {
+      _isTrimming = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final trimmedPath = await _videoService.trimVideo(
+        _videoPath!,
+        _startTime,
+        _endTime,
+      );
+
+      // Initialize video player for trimmed video
+      final controller = VideoPlayerController.file(File(trimmedPath));
+      await controller.initialize();
+
+      // Dispose previous processed video controller if exists
+      await _processedVideoController?.dispose();
+
+      setState(() {
+        _processedVideoController = controller;
+        _isTrimming = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Error: ${e.toString()}';
+        _isTrimming = false;
+      });
+    }
+  }
+
+  Future<void> _rotateVideo() async {
+    if (_videoPath == null) return;
+
+    setState(() {
+      _isProcessing = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final rotatedPath = await _videoService.rotateVideo(
+        _videoPath!,
+        _clockwiseQuarterTurns,
+      );
+
+      // Initialize video player for rotated video
+      final controller = VideoPlayerController.file(File(rotatedPath));
+      await controller.initialize();
+
+      // Dispose previous processed video controller if exists
+      await _processedVideoController?.dispose();
+
+      setState(() {
+        _processedVideoController = controller;
+        _isProcessing = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Error: ${e.toString()}';
+        _isProcessing = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -56,7 +151,7 @@ class _VideoProcessingWidgetState extends State<VideoProcessingWidget> {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
-            
+
             // Download button
             ElevatedButton(
               onPressed: _isDownloading ? null : _downloadVideo,
@@ -71,15 +166,14 @@ class _VideoProcessingWidgetState extends State<VideoProcessingWidget> {
                     )
                   : const Text('Download Sample Video'),
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Video duration
-            if (_videoPath != null)
-              Text('Video Duration: $_videoDuration'),
-            
+            if (_videoPath != null) Text('Video Duration: $_videoDuration'),
+
             const SizedBox(height: 8),
-            
+
             // Original video player
             if (_videoPlayerController != null)
               SizedBox(
@@ -89,30 +183,26 @@ class _VideoProcessingWidgetState extends State<VideoProcessingWidget> {
                   child: VideoPlayer(_videoPlayerController!),
                 ),
               ),
-            
+
             if (_videoPlayerController != null)
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   IconButton(
                     icon: Icon(
-                      _videoPlayerController!.value.isPlaying
-                          ? Icons.pause
-                          : Icons.play_arrow,
+                      _videoPlayerController!.value.isPlaying ? Icons.pause : Icons.play_arrow,
                     ),
                     onPressed: () {
                       setState(() {
-                        _videoPlayerController!.value.isPlaying
-                            ? _videoPlayerController!.pause()
-                            : _videoPlayerController!.play();
+                        _videoPlayerController!.value.isPlaying ? _videoPlayerController!.pause() : _videoPlayerController!.play();
                       });
                     },
                   ),
                 ],
               ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Video processing controls
             if (_videoPath != null) ...[
               // Trim controls
@@ -137,7 +227,7 @@ class _VideoProcessingWidgetState extends State<VideoProcessingWidget> {
                   ),
                 ],
               ),
-              
+
               // Trim range
               Row(
                 children: [
@@ -155,7 +245,7 @@ class _VideoProcessingWidgetState extends State<VideoProcessingWidget> {
                   Text('${_startTime.toStringAsFixed(1)}s'),
                 ],
               ),
-              
+
               Row(
                 children: [
                   const Text('End:'),
@@ -172,7 +262,7 @@ class _VideoProcessingWidgetState extends State<VideoProcessingWidget> {
                   Text('${_endTime.toStringAsFixed(1)}s'),
                 ],
               ),
-              
+
               // Rotation controls
               Row(
                 children: [
@@ -195,7 +285,7 @@ class _VideoProcessingWidgetState extends State<VideoProcessingWidget> {
                   ),
                 ],
               ),
-              
+
               // Rotation angle
               Row(
                 children: [
@@ -215,9 +305,9 @@ class _VideoProcessingWidgetState extends State<VideoProcessingWidget> {
                 ],
               ),
             ],
-            
+
             const SizedBox(height: 16),
-            
+
             // Processed video player
             if (_processedVideoController != null) ...[
               const Divider(),
@@ -238,22 +328,18 @@ class _VideoProcessingWidgetState extends State<VideoProcessingWidget> {
                 children: [
                   IconButton(
                     icon: Icon(
-                      _processedVideoController!.value.isPlaying
-                          ? Icons.pause
-                          : Icons.play_arrow,
+                      _processedVideoController!.value.isPlaying ? Icons.pause : Icons.play_arrow,
                     ),
                     onPressed: () {
                       setState(() {
-                        _processedVideoController!.value.isPlaying
-                            ? _processedVideoController!.pause()
-                            : _processedVideoController!.play();
+                        _processedVideoController!.value.isPlaying ? _processedVideoController!.pause() : _processedVideoController!.play();
                       });
                     },
                   ),
                 ],
               ),
             ],
-            
+
             // Error message
             if (_errorMessage != null)
               Padding(
@@ -267,103 +353,5 @@ class _VideoProcessingWidgetState extends State<VideoProcessingWidget> {
         ),
       ),
     );
-  }
-
-  Future<void> _downloadVideo() async {
-    setState(() {
-      _isDownloading = true;
-      _errorMessage = null;
-    });
-
-    try {
-      final videoPath = await _videoService.downloadVideo(widget.defaultVideoUrl);
-      
-      // Initialize video player
-      final controller = VideoPlayerController.file(File(videoPath));
-      await controller.initialize();
-      
-      // Get video duration
-      final duration = controller.value.duration;
-      
-      setState(() {
-        _videoPath = videoPath;
-        _videoPlayerController = controller;
-        _videoDuration = '${duration.inMinutes}:${(duration.inSeconds % 60).toString().padLeft(2, '0')}';
-        _endTime = duration.inSeconds.toDouble().clamp(0, 60);
-        _isDownloading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Error: ${e.toString()}';
-        _isDownloading = false;
-      });
-    }
-  }
-
-  Future<void> _trimVideo() async {
-    if (_videoPath == null) return;
-    
-    setState(() {
-      _isTrimming = true;
-      _errorMessage = null;
-    });
-
-    try {
-      final trimmedPath = await _videoService.trimVideo(
-        _videoPath!,
-        _startTime,
-        _endTime,
-      );
-      
-      // Initialize video player for trimmed video
-      final controller = VideoPlayerController.file(File(trimmedPath));
-      await controller.initialize();
-      
-      // Dispose previous processed video controller if exists
-      await _processedVideoController?.dispose();
-      
-      setState(() {
-        _processedVideoController = controller;
-        _isTrimming = false;
-      });
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Error: ${e.toString()}';
-        _isTrimming = false;
-      });
-    }
-  }
-
-  Future<void> _rotateVideo() async {
-    if (_videoPath == null) return;
-    
-    setState(() {
-      _isProcessing = true;
-      _errorMessage = null;
-    });
-
-    try {
-      final rotatedPath = await _videoService.rotateVideo(
-        _videoPath!,
-        _clockwiseQuarterTurns,
-      );
-      
-      // Initialize video player for rotated video
-      final controller = VideoPlayerController.file(File(rotatedPath));
-      await controller.initialize();
-      
-      // Dispose previous processed video controller if exists
-      await _processedVideoController?.dispose();
-      
-      setState(() {
-        _processedVideoController = controller;
-        _isProcessing = false;
-      });
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Error: ${e.toString()}';
-        _isProcessing = false;
-      });
-    }
   }
 }
