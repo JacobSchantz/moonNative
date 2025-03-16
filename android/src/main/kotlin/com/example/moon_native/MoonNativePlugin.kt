@@ -51,7 +51,7 @@ class MoonNativePlugin: FlutterPlugin, MethodCallHandler {
     channel.setMethodCallHandler(null)
   }
 
-  override fun onMethodCall(call: MethodCall, result: Result) {
+  override fun onMethodCall(@NonNull call: MethodCall, @NonNull result: Result) {
     when (call.method) {
       "getPlatformVersion" -> {
         result.success("Android ${android.os.Build.VERSION.RELEASE}")
@@ -62,7 +62,7 @@ class MoonNativePlugin: FlutterPlugin, MethodCallHandler {
         val endTime = call.argument<Double>("endTime")
         
         if (videoPath == null || startTime == null || endTime == null) {
-          result.error("INVALID_ARGS", "Video path, start time, and end time are required", null)
+          result.error("INVALID_ARGS", "Missing required arguments", null)
           return
         }
         
@@ -73,7 +73,7 @@ class MoonNativePlugin: FlutterPlugin, MethodCallHandler {
         val quarterTurns = call.argument<Int>("quarterTurns")
         
         if (videoPath == null || quarterTurns == null) {
-          result.error("INVALID_ARGS", "Video path and quarter turns are required", null)
+          result.error("INVALID_ARGS", "Missing required arguments", null)
           return
         }
         
@@ -86,53 +86,108 @@ class MoonNativePlugin: FlutterPlugin, MethodCallHandler {
         
         playBeep(frequency, durationMs, volume.toFloat(), result)
       }
-      // Handle both method names for image compression from path
-      "compressImage", "compressImageFromPath" -> {
-        val imagePath = call.argument<String>("imagePath")
-        val imageBytes = call.argument<ByteArray>("imageBytes")
-        val quality = call.argument<Int>("quality")
-        val format = call.argument<String>("format")
-        
-        if (quality == null) {
-          result.error("INVALID_ARGS", "Quality is required", null)
-          return
-        }
-        
-        if (imagePath == null && imageBytes == null) {
-          result.error("INVALID_ARGS", "Invalid arguments for image compression", null)
-          return
-        }
-        
+      "compressImage" -> {
         try {
-          if (imagePath != null) {
-            compressImage(imagePath, quality, format, result)
-          } else if (imageBytes != null) {
-            // Check if bytes are empty
-            if (imageBytes.isEmpty()) {
-              result.error("INVALID_ARGS", "Image bytes cannot be empty", null)
-              return
-            }
-            compressImageFromBytes(imageBytes, quality, format, result)
+          val imagePath = call.argument<String>("imagePath")
+          val quality = call.argument<Int>("quality") ?: 80
+          val format = call.argument<String>("format")
+          
+          Log.d("MoonNative", "compressImage called with path: $imagePath, quality: $quality, format: $format")
+          
+          if (imagePath == null) {
+            result.error("INVALID_ARGS", "Image path is required", null)
+            return
           }
+          
+          // Verify the file exists
+          val inputFile = File(imagePath)
+          if (!inputFile.exists()) {
+            result.error("INVALID_ARGS", "Image file does not exist: $imagePath", null)
+            return
+          }
+          
+          Log.d("MoonNative", "Input file exists: ${inputFile.length()} bytes")
+          
+          // Create output file
+          val outputDir = context.cacheDir
+          val outputFormat = format?.lowercase() ?: "jpg"
+          val outputFileName = "compressed_${System.currentTimeMillis()}.$outputFormat"
+          val outputFile = File(outputDir, outputFileName)
+          val outputPath = outputFile.absolutePath
+          
+          // Determine compression format
+          val compressFormat = when (outputFormat) {
+            "png" -> Bitmap.CompressFormat.PNG
+            "webp" -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) Bitmap.CompressFormat.WEBP_LOSSY else Bitmap.CompressFormat.WEBP
+            else -> Bitmap.CompressFormat.JPEG
+          }
+          
+          // Load and compress in a background thread
+          Thread {
+            try {
+              // Load bitmap
+              val bitmap = BitmapFactory.decodeFile(imagePath)
+              if (bitmap == null) {
+                android.os.Handler(Looper.getMainLooper()).post {
+                  result.error("COMPRESSION_ERROR", "Failed to decode image file", null)
+                }
+                return@Thread
+              }
+              
+              // Compress to file
+              FileOutputStream(outputFile).use { out ->
+                bitmap.compress(compressFormat, quality, out)
+                out.flush()
+              }
+              
+              // Verify output
+              if (!outputFile.exists() || outputFile.length() == 0L) {
+                android.os.Handler(Looper.getMainLooper()).post {
+                  result.error("COMPRESSION_ERROR", "Failed to create output file", null)
+                }
+                return@Thread
+              }
+              
+              // Clean up
+              bitmap.recycle()
+              
+              // Return the path
+              android.os.Handler(Looper.getMainLooper()).post {
+                Log.d("MoonNative", "Compression successful, returning path: $outputPath")
+                result.success(outputPath)
+              }
+            } catch (e: Exception) {
+              Log.e("MoonNative", "Error in compression thread: ${e.message}")
+              e.printStackTrace()
+              android.os.Handler(Looper.getMainLooper()).post {
+                result.error("COMPRESSION_ERROR", "Error compressing image: ${e.message}", null)
+              }
+            }
+          }.start()
         } catch (e: Exception) {
           Log.e("MoonNative", "Error in compressImage: ${e.message}")
           e.printStackTrace()
           result.error("COMPRESSION_ERROR", "Error compressing image: ${e.message}", null)
         }
       }
-      
-      // Handle bytes-specific compression method
       "compressImageFromBytes" -> {
         val imageBytes = call.argument<ByteArray>("imageBytes")
         val quality = call.argument<Int>("quality")
         val format = call.argument<String>("format")
         
-        if (quality == null || imageBytes == null) {
-          result.error("INVALID_ARGS", "Quality and imageBytes are required", null)
+        Log.d("MoonNative", "Method call received: ${call.method}")
+        Log.d("MoonNative", "Arguments: imageBytes=${imageBytes != null}, quality=$quality, format=$format")
+        
+        if (imageBytes == null) {
+          result.error("INVALID_ARGS", "Image bytes are required", null)
           return
         }
         
-        // Check if bytes are empty
+        if (quality == null) {
+          result.error("INVALID_ARGS", "Quality is required", null)
+          return
+        }
+        
         if (imageBytes.isEmpty()) {
           result.error("INVALID_ARGS", "Image bytes cannot be empty", null)
           return
@@ -151,7 +206,7 @@ class MoonNativePlugin: FlutterPlugin, MethodCallHandler {
       }
     }
   }
-  
+
   private fun trimVideo(videoPath: String, startTime: Double, endTime: Double, result: Result) {
     CoroutineScope(Dispatchers.IO).launch {
       try {
@@ -467,80 +522,65 @@ class MoonNativePlugin: FlutterPlugin, MethodCallHandler {
     }
   }
 
-  private fun compressImage(imagePath: String, quality: Int, format: String?, result: Result) {
-    try {
-      // Load bitmap from file
-      val originalBitmap = BitmapFactory.decodeFile(imagePath)
-      if (originalBitmap == null) {
-        result.error("INVALID_IMAGE", "Could not decode image from path", null)
-        return
+  private fun compressImageFromBytes(
+    imageBytes: ByteArray,
+    quality: Int,
+    format: String?,
+    result: Result
+  ) {
+    Thread(Runnable {
+      try {
+        Log.d("MoonNative", "Processing image bytes of size: ${imageBytes.size}")
+        
+        // Save bytes to a temporary file for debugging
+        try {
+          val tempFile = File(context.cacheDir, "temp_image_${System.currentTimeMillis()}.jpg")
+          tempFile.outputStream().use { it.write(imageBytes) }
+          Log.d("MoonNative", "Saved image bytes to temporary file: ${tempFile.absolutePath}")
+        } catch (e: Exception) {
+          Log.e("MoonNative", "Failed to save debug file: ${e.message}")
+        }
+        
+        // Set options for decoding the bitmap to ensure proper orientation and format
+        val options = BitmapFactory.Options().apply {
+          inPreferredConfig = Bitmap.Config.ARGB_8888
+        }
+        
+        // Load the bitmap from bytes
+        val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size, options)
+        if (bitmap == null) {
+          throw Exception("Failed to decode image bytes")
+        }
+        
+        Log.d("MoonNative", "Successfully created Bitmap from bytes with size: ${bitmap.width}x${bitmap.height}")
+        
+        // Compress to bytes
+        val outputStream = ByteArrayOutputStream()
+        val compressFormat = when (format?.lowercase()) {
+          "png" -> Bitmap.CompressFormat.PNG
+          "webp" -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) Bitmap.CompressFormat.WEBP_LOSSY else Bitmap.CompressFormat.WEBP
+          else -> Bitmap.CompressFormat.JPEG
+        }
+        
+        bitmap.compress(compressFormat, quality, outputStream)
+        val compressedBytes = outputStream.toByteArray()
+        
+        // Clean up
+        outputStream.close()
+        bitmap.recycle()
+        
+        Log.d("MoonNative", "Image compression completed successfully, compressed size: ${compressedBytes.size} bytes")
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+          // Return the byte array directly - Flutter will handle it as Uint8List
+          result.success(compressedBytes)
+        }
+      } catch (e: Exception) {
+        Log.e("MoonNative", "Error compressing image from bytes: ${e.message}")
+        e.printStackTrace()
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+          result.error("COMPRESSION_ERROR", "Error compressing image from bytes: ${e.message}", null)
+        }
       }
-      
-      // Compress to bytes
-      val outputStream = ByteArrayOutputStream()
-      val compressFormat = when (format?.lowercase()) {
-        "png" -> Bitmap.CompressFormat.PNG
-        "webp" -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) Bitmap.CompressFormat.WEBP_LOSSY else Bitmap.CompressFormat.WEBP
-        else -> Bitmap.CompressFormat.JPEG
-      }
-      
-      originalBitmap.compress(compressFormat, quality, outputStream)
-      val compressedBytes = outputStream.toByteArray()
-      
-      // Clean up
-      outputStream.close()
-      originalBitmap.recycle()
-      
-      result.success(compressedBytes)
-    } catch (e: Exception) {
-      Log.e("MoonNative", "Error compressing image: ${e.message}")
-      e.printStackTrace()
-      result.error("COMPRESSION_ERROR", "Error compressing image: ${e.message}", null)
-    }
-  }
-
-  private fun compressImageFromBytes(imageBytes: ByteArray, quality: Int, format: String?, result: Result) {
-    try {
-      // Load bitmap from bytes
-      val originalBitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
-      if (originalBitmap == null) {
-        result.error("INVALID_IMAGE", "Could not decode image from bytes", null)
-        return
-      }
-      
-      // Compress to bytes
-      val outputStream = ByteArrayOutputStream()
-      val compressFormat = when (format?.lowercase()) {
-        "png" -> Bitmap.CompressFormat.PNG
-        "webp" -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) Bitmap.CompressFormat.WEBP_LOSSY else Bitmap.CompressFormat.WEBP
-        else -> Bitmap.CompressFormat.JPEG
-      }
-      
-      originalBitmap.compress(compressFormat, quality, outputStream)
-      val compressedBytes = outputStream.toByteArray()
-      
-      // Clean up
-      outputStream.close()
-      originalBitmap.recycle()
-      
-      result.success(compressedBytes)
-    } catch (e: Exception) {
-      Log.e("MoonNative", "Error compressing image: ${e.message}")
-      e.printStackTrace()
-      result.error("COMPRESSION_ERROR", "Error compressing image: ${e.message}", null)
-    }
-  }
-
-  // Helper method to find video track
-  private fun findVideoTrack(extractor: MediaExtractor): Int {
-    for (i in 0 until extractor.trackCount) {
-      val format = extractor.getTrackFormat(i)
-      val mime = format.getString(MediaFormat.KEY_MIME) ?: continue
-      
-      if (mime.startsWith("video/")) {
-        return i
-      }
-    }
-    return -1
+    }).start()
   }
 }

@@ -290,9 +290,13 @@ class _ImageCompressionWidgetState extends State<ImageCompressionWidget> {
 
       // Save bytes to a temporary file to test path-based compression
       final tempDir = await getTemporaryDirectory();
-      final tempFile = File('${tempDir.path}/temp_image.jpg');
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final tempFile = File('${tempDir.path}/temp_image_$timestamp.jpg');
       await tempFile.writeAsBytes(imageBytes);
       _tempImagePath = tempFile.path;
+      
+      print('Saved temporary file at: $_tempImagePath');
+      print('File exists: ${await tempFile.exists()}, size: ${await tempFile.length()} bytes');
 
       setState(() {
         _isLoading = false;
@@ -321,6 +325,15 @@ class _ImageCompressionWidgetState extends State<ImageCompressionWidget> {
     });
 
     try {
+      // Ensure we have a valid file path
+      final file = File(_tempImagePath!);
+      if (!await file.exists()) {
+        throw Exception('Image file does not exist: $_tempImagePath');
+      }
+      
+      print('Compressing image from path: $_tempImagePath');
+      print('File exists: ${await file.exists()}, size: ${await file.length()} bytes');
+      
       // Compress using path
       final pathResult = await MoonNative.compressImageFromPath(
         imagePath: _tempImagePath!,
@@ -328,13 +341,21 @@ class _ImageCompressionWidgetState extends State<ImageCompressionWidget> {
         format: _imageFormat,
       );
 
+      print('Compression result: $pathResult');
+      
       if (pathResult == null) {
         throw Exception('Path-based compression failed');
       }
 
       // Calculate compression ratio
       final originalSize = _originalImageBytes!.length;
-      final pathCompressedSize = File(pathResult).lengthSync();
+      final compressedFile = File(pathResult);
+      
+      if (!await compressedFile.exists()) {
+        throw Exception('Compressed file does not exist: $pathResult');
+      }
+      
+      final pathCompressedSize = await compressedFile.length();
       final pathRatio = originalSize / pathCompressedSize;
 
       setState(() {
@@ -343,6 +364,7 @@ class _ImageCompressionWidgetState extends State<ImageCompressionWidget> {
         _isLoading = false;
       });
     } catch (e) {
+      print('Error compressing from path: $e');
       setState(() {
         _errorMessage = 'Error compressing from path: ${e.toString()}';
         _isLoading = false;

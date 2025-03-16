@@ -58,7 +58,7 @@ class MethodChannelMoonNative extends MoonNativePlatform {
       'format': format,
     };
 
-    return await methodChannel.invokeMethod<String>('compressImageFromPath', args);
+    return await methodChannel.invokeMethod<String>('compressImage', args);
   }
 
   @override

@@ -68,6 +68,7 @@ class _MoonNativeTestWidgetState extends State<MoonNativeTestWidget> {
             const SizedBox(height: 16),
             // Video Processing Widget
             VideoProcessingWidget(defaultVideoUrl: _fixedVideoUrl),
+            const SizedBox(height: 40),
           ],
         ),
       ),

@@ -3,7 +3,6 @@ import 'dart:typed_data';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
 
 import 'moon_native_platform_interface.dart';
 
@@ -76,51 +75,60 @@ class MoonNative {
   }) async {
     assert(quality >= 0 && quality <= 100, 'quality must be between 0 and 100 inclusive');
 
-    // First, compress the image using the platform implementation
-    final compressedPath = await MoonNativePlatform.instance.compressImageFromPath(
-      imagePath: imagePath,
-      quality: quality,
-      format: format,
-    );
-
-    if (compressedPath == null) {
-      return null; // Compression failed
+    // Validate the input file exists
+    final inputFile = File(imagePath);
+    if (!await inputFile.exists()) {
+      debugPrint('MoonNative: Input file does not exist: $imagePath');
+      return null;
     }
 
-    // Compare file sizes to ensure we're not increasing the size
-    try {
-      // For file path input, compare file sizes
-      final originalFile = File(imagePath);
-      final compressedFile = File(compressedPath);
+    debugPrint('MoonNative: Compressing image from path: $imagePath');
+    debugPrint('MoonNative: File exists: ${await inputFile.exists()}, size: ${await inputFile.length()} bytes');
 
-      if (await originalFile.exists() && await compressedFile.exists()) {
-        final originalSize = await originalFile.length();
+    try {
+      // First, compress the image using the platform implementation
+      final compressedPath = await MoonNativePlatform.instance.compressImageFromPath(
+        imagePath: imagePath,
+        quality: quality,
+        format: format,
+      );
+
+      if (compressedPath == null) {
+        debugPrint('MoonNative: Compression returned null path');
+        return null; // Compression failed
+      }
+
+      debugPrint('MoonNative: Compression returned path: $compressedPath');
+
+      // Verify the compressed file exists
+      final compressedFile = File(compressedPath);
+      if (!await compressedFile.exists()) {
+        debugPrint('MoonNative: Compressed file does not exist: $compressedPath');
+        return null;
+      }
+
+      // Compare file sizes to ensure we're not increasing the size
+      try {
+        // For file path input, compare file sizes
+        final originalSize = await inputFile.length();
         final compressedSize = await compressedFile.length();
+
+        debugPrint('MoonNative: Original size: $originalSize bytes, Compressed size: $compressedSize bytes');
 
         if (compressedSize > originalSize) {
           debugPrint('MoonNative: Compression increased file size. Using original instead.');
-          debugPrint('MoonNative: Original: $originalSize bytes, Compressed: $compressedSize bytes');
-
-          // Compression increased file size, copy original to a new location
-          final tempDir = await getTemporaryDirectory();
-          final extension = imagePath.split('.').last;
-          final outputFileName = 'uncompressed_${DateTime.now().millisecondsSinceEpoch}.$extension';
-          final outputFile = File('${tempDir.path}/$outputFileName');
-
-          // Copy the original file
-          await originalFile.copy(outputFile.path);
-          return outputFile.path;
-        } else {
-          debugPrint('MoonNative: Compression successful, reduced size by ${originalSize - compressedSize} bytes');
+          return imagePath; // Return original path if compression increased size
         }
+
+        return compressedPath;
+      } catch (e) {
+        debugPrint('MoonNative: Error comparing file sizes: $e');
+        return compressedPath; // Return the compressed path anyway if we can't compare sizes
       }
     } catch (e) {
-      debugPrint('MoonNative: Error comparing file sizes: $e');
-      // If there's an error in the size comparison, just return the compressed path
+      debugPrint('MoonNative: Error in compressImageFromPath: $e');
+      return null;
     }
-
-    // Return the compressed path if it's smaller or equal to the original
-    return compressedPath;
   }
 
   /// Compresses an image from bytes
