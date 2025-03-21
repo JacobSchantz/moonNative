@@ -61,16 +61,29 @@ class MoonNative {
 
   /// Gets the navigation mode on Android (whether it uses gesture navigation or back button)
   ///
-  /// Returns a map containing:
-  /// - isGestureNavigation: true if the device uses gesture navigation, false if it uses buttons
-  /// - navigationMode: the raw navigation mode value (Android only):
-  ///   - 0: 3-button navigation (back, home, recents)
-  ///   - 1: 2-button navigation (back gesture, home pill)
-  ///   - 2: Gesture navigation (all gestures)
+  /// Returns the navigation mode as a MoonNavigationMode enum:
+  ///   - MoonNavigationMode.threeButton: 3-button navigation (back, home, recents)
+  ///   - MoonNavigationMode.twoButton: 2-button navigation (back gesture, home pill)
+  ///   - MoonNavigationMode.fullGesture: Gesture navigation (all gestures)
   ///
   /// Returns null on iOS or if the detection fails
-  static Future<Map<String, dynamic>?> getNavigationMode() {
-    return MoonNativePlatform.instance.getNavigationMode();
+  static Future<MoonNavigationMode?> getNavigationMode() async {
+    final result = await MoonNativePlatform.instance.getNavigationMode();
+    if (result == null) return null;
+    
+    final navigationMode = result['navigationMode'] as int;
+    
+    switch (navigationMode) {
+      case 0:
+        return MoonNavigationMode.threeButton;
+      case 1:
+        return MoonNavigationMode.twoButton;
+      case 2:
+        return MoonNavigationMode.fullGesture;
+      default:
+        debugPrint('MoonNative: Unknown navigation mode: $navigationMode');
+        return null;
+    }
   }
 
   /// Compresses an image from a file path
@@ -186,3 +199,5 @@ class MoonNative {
     }
   }
 }
+
+enum MoonNavigationMode { threeButton, twoButton, fullGesture }

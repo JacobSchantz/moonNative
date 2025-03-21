@@ -51,25 +51,25 @@ class _MoonNativeTestWidgetState extends State<MoonNativeTestWidget> {
     });
 
     try {
-      final navigationInfo = await MoonNative.getNavigationMode();
+      final navigationMode = await MoonNative.getNavigationMode();
       
-      if (navigationInfo != null) {
-        final isGestureNavigation = navigationInfo['isGestureNavigation'] as bool;
-        final navigationMode = navigationInfo['navigationMode'] as int;
-        
+      if (navigationMode != null) {
         String modeDescription;
+        bool isGestureNavigation;
+        
         switch (navigationMode) {
-          case 0:
+          case MoonNavigationMode.threeButton:
             modeDescription = '3-button navigation (back, home, recents)';
+            isGestureNavigation = false;
             break;
-          case 1:
+          case MoonNavigationMode.twoButton:
             modeDescription = '2-button navigation (back gesture, home pill)';
+            isGestureNavigation = true;
             break;
-          case 2:
+          case MoonNavigationMode.fullGesture:
             modeDescription = 'Full gesture navigation';
+            isGestureNavigation = true;
             break;
-          default:
-            modeDescription = 'Unknown navigation mode ($navigationMode)';
         }
         
         setState(() {
