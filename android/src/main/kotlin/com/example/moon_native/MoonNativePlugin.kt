@@ -17,6 +17,9 @@ import android.os.Looper
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
+import android.view.WindowInsets
+import android.view.WindowManager
+import android.provider.Settings
 import java.io.FileOutputStream
 import java.io.ByteArrayOutputStream
 
@@ -40,6 +43,11 @@ class MoonNativePlugin: FlutterPlugin, MethodCallHandler {
   /// when the Flutter Engine is detached from the Activity
   private lateinit var channel : MethodChannel
   private lateinit var context : Context
+  
+  // Define our own constant for navigation mode setting
+  private companion object {
+    const val NAVIGATION_MODE = "navigation_mode"
+  }
 
   override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
     channel = MethodChannel(flutterPluginBinding.binaryMessenger, "moon_native")
@@ -85,6 +93,9 @@ class MoonNativePlugin: FlutterPlugin, MethodCallHandler {
         val volume = call.argument<Double>("volume") ?: 1.0
         
         playBeep(frequency, durationMs, volume.toFloat(), result)
+      }
+      "getNavigationMode" -> {
+        getNavigationMode(result)
       }
       "compressImage" -> {
         try {
@@ -582,5 +593,49 @@ class MoonNativePlugin: FlutterPlugin, MethodCallHandler {
         }
       }
     }).start()
+  }
+
+  private fun getNavigationMode(result: Result) {
+    try {
+      // Different ways to check navigation mode depending on Android version
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        // For Android 10 (API 29) and above, we can check system settings
+        val navigationMode = Settings.Secure.getInt(
+          context.contentResolver,
+          NAVIGATION_MODE,
+          0
+        )
+        
+        // Navigation modes:
+        // 0 = 3-button navigation (back, home, recents)
+        // 1 = 2-button navigation (back gesture, home pill)
+        // 2 = Gesture navigation (all gestures)
+        
+        val isGestureMode = when (navigationMode) {
+          0 -> false // 3-button navigation
+          1 -> true  // 2-button navigation (has back gesture)
+          2 -> true  // Full gesture navigation
+          else -> false // Default to false for unknown values
+        }
+        
+        Log.d("MoonNative", "Navigation mode detected: $navigationMode (isGesture: $isGestureMode)")
+        result.success(mapOf(
+          "isGestureNavigation" to isGestureMode,
+          "navigationMode" to navigationMode
+        ))
+      } else {
+        // For older Android versions, we can only guess based on device model or assume button navigation
+        // Most devices before Android 10 used button navigation by default
+        Log.d("MoonNative", "Device running Android ${Build.VERSION.SDK_INT}, assuming button navigation")
+        result.success(mapOf(
+          "isGestureNavigation" to false,
+          "navigationMode" to 0
+        ))
+      }
+    } catch (e: Exception) {
+      Log.e("MoonNative", "Error detecting navigation mode: ${e.message}")
+      e.printStackTrace()
+      result.error("NAVIGATION_MODE_ERROR", "Error detecting navigation mode: ${e.message}", null)
+    }
   }
 }

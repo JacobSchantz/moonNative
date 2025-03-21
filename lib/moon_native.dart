@@ -59,6 +59,20 @@ class MoonNative {
     );
   }
 
+  /// Gets the navigation mode on Android (whether it uses gesture navigation or back button)
+  ///
+  /// Returns a map containing:
+  /// - isGestureNavigation: true if the device uses gesture navigation, false if it uses buttons
+  /// - navigationMode: the raw navigation mode value (Android only):
+  ///   - 0: 3-button navigation (back, home, recents)
+  ///   - 1: 2-button navigation (back gesture, home pill)
+  ///   - 2: Gesture navigation (all gestures)
+  ///
+  /// Returns null on iOS or if the detection fails
+  static Future<Map<String, dynamic>?> getNavigationMode() {
+    return MoonNativePlatform.instance.getNavigationMode();
+  }
+
   /// Compresses an image from a file path
   ///
   /// Parameters:

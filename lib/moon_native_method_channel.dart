@@ -47,6 +47,20 @@ class MethodChannelMoonNative extends MoonNativePlatform {
   }
 
   @override
+  Future<Map<String, dynamic>?> getNavigationMode() async {
+    try {
+      final result = await methodChannel.invokeMethod<Map<Object?, Object?>>('getNavigationMode');
+      if (result == null) return null;
+      
+      // Convert from Map<Object?, Object?> to Map<String, dynamic>
+      return result.map((key, value) => MapEntry(key.toString(), value));
+    } catch (e) {
+      debugPrint('Error getting navigation mode: $e');
+      return null;
+    }
+  }
+
+  @override
   Future<String?> compressImageFromPath({
     required String imagePath,
     required int quality,

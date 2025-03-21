@@ -65,6 +65,18 @@ abstract class MoonNativePlatform extends PlatformInterface {
     throw UnimplementedError('playBeep() has not been implemented.');
   }
 
+  /// Gets the navigation mode on Android
+  ///
+  /// Returns a map containing:
+  /// - isGestureNavigation: true if the device uses gesture navigation, false if it uses buttons
+  /// - navigationMode: the raw navigation mode value (Android only):
+  ///   - 0: 3-button navigation (back, home, recents)
+  ///   - 1: 2-button navigation (back gesture, home pill)
+  ///   - 2: Gesture navigation (all gestures)
+  Future<Map<String, dynamic>?> getNavigationMode() {
+    throw UnimplementedError('getNavigationMode() has not been implemented.');
+  }
+
   /// Compresses an image file from a path
   ///
   /// Parameters:
