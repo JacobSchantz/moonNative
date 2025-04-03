@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:moon_native/moon_native.dart';
 import 'package:video_player/video_player.dart';
 import 'package:moon_native/services/video_service.dart';
 
@@ -78,11 +79,12 @@ class _VideoProcessingWidgetState extends State<VideoProcessingWidget> {
     });
 
     try {
-      final trimmedPath = await _videoService.trimVideo(
+      final trimmedPath = await MoonNative.trimVideo(
         _videoPath!,
         _startTime,
         _endTime,
       );
+      if (trimmedPath == null) throw 'Failed to trim video';
 
       // Initialize video player for trimmed video
       final controller = VideoPlayerController.file(File(trimmedPath));
@@ -112,10 +114,11 @@ class _VideoProcessingWidgetState extends State<VideoProcessingWidget> {
     });
 
     try {
-      final rotatedPath = await _videoService.rotateVideo(
+      final rotatedPath = await MoonNative.rotateVideo(
         _videoPath!,
         _clockwiseQuarterTurns,
       );
+      if (rotatedPath == null) throw 'Failed to rotate video';
 
       // Initialize video player for rotated video
       final controller = VideoPlayerController.file(File(rotatedPath));

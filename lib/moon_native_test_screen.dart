@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:moon_native/moon_native.dart';
 import 'package:moon_native/widgets/image_compression_widget.dart';
 import 'package:moon_native/widgets/video_processing_widget.dart';
+import 'package:moon_native/widgets/video_compression_widget.dart';
 
 /// Main test screen for the Moon Native plugin.
 /// This screen demonstrates the image compression and video processing capabilities.
@@ -123,6 +124,19 @@ class _MoonNativeTestWidgetState extends State<MoonNativeTestWidget> {
             const SizedBox(height: 16),
             // Video Processing Widget
             VideoProcessingWidget(defaultVideoUrl: _fixedVideoUrl),
+            
+            const SizedBox(height: 32),
+            const Divider(),
+            const SizedBox(height: 32),
+            
+            // Video Compression Section
+            const Text(
+              'Video Compression',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            // Video Compression Widget
+            VideoCompressionWidget(defaultVideoUrl: _fixedVideoUrl),
             
             const SizedBox(height: 32),
             const Divider(),

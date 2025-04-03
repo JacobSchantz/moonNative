@@ -10,6 +10,9 @@ public class MoonNativePlugin: NSObject, FlutterPlugin {
     let channel = FlutterMethodChannel(name: "moon_native", binaryMessenger: registrar.messenger())
     let instance = MoonNativePlugin()
     registrar.addMethodCallDelegate(instance, channel: channel)
+    
+    // Register video compression event channel
+    VideoCompressionManager.shared.registerEventChannel(registrar: registrar)
   }
 
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -146,6 +149,36 @@ public class MoonNativePlugin: NSObject, FlutterPlugin {
         }
       }
     
+    case "enqueueVideoCompression":
+      guard let args = call.arguments as? [String: Any],
+            let videoPath = args["videoPath"] as? String,
+            let quality = args["quality"] as? Int else {
+        result(FlutterError(code: "INVALID_ARGS", message: "Invalid arguments for video compression", details: nil))
+        return
+      }
+      
+      let resolution = args["resolution"] as? String
+      let bitrate = args["bitrate"] as? Int
+      
+      let success = VideoCompressionManager.shared.enqueueCompression(
+        videoPath: videoPath,
+        quality: quality,
+        resolution: resolution,
+        bitrate: bitrate
+      )
+      
+      result(success)
+    
+    case "cancelVideoCompression":
+      guard let args = call.arguments as? [String: Any],
+            let compressionId = args["compressionId"] as? String else {
+        result(FlutterError(code: "INVALID_ARGS", message: "Compression ID is required", details: nil))
+        return
+      }
+      
+      let success = VideoCompressionManager.shared.cancelCompression(compressionId: compressionId)
+      result(success)
+      
     default:
       result(FlutterMethodNotImplemented)
     }

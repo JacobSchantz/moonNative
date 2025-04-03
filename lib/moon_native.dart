@@ -8,6 +8,8 @@ import 'moon_native_platform_interface.dart';
 
 // Export test screen so it can be imported in other projects
 export 'moon_native_test_screen.dart';
+// Export video compression types so they can be used in other projects
+export 'moon_native_platform_interface.dart' show VideoCompressionUpdate, VideoCompressionStatus;
 
 class MoonNative {
   /// Private constructor to prevent instantiation
@@ -198,6 +200,88 @@ class MoonNative {
       return compressedBytes;
     }
   }
+  
+  /// Enqueues a video for background compression
+  ///
+  /// Parameters:
+  /// - videoPath: Path to the input video file
+  /// - quality: Quality of the compressed video (0-100), where 100 is highest quality
+  ///   Use the VideoQuality class constants for common presets
+  /// - resolution: Target resolution e.g. '720p', '480p', '360p' (optional)
+  ///   Use the VideoResolution class constants for common resolutions
+  /// - bitrate: Target bitrate in bits per second (optional)
+  ///
+  /// Returns a Future<bool> that resolves to true if enqueuing was successful.
+  /// To monitor the progress, use the videoCompressionUpdates getter.
+  static Future<bool> enqueueVideoCompression({
+    required String videoPath,
+    required int quality,
+    String? resolution,
+    int? bitrate,
+  }) {
+    assert(quality >= 0 && quality <= 100, 'quality must be between 0 and 100 inclusive');
+    return MoonNativePlatform.instance.enqueueVideoCompression(
+      videoPath: videoPath,
+      quality: quality,
+      resolution: resolution,
+      bitrate: bitrate,
+    );
+  }
+  
+  /// Stream of video compression status updates
+  ///
+  /// This stream emits updates for all ongoing video compression tasks, including:
+  /// - progress: A value between 0.0 and 1.0 indicating progress
+  /// - status: VideoCompressionStatus enum (processing, completed, error, or cancelled)
+  /// - compressionId: The unique ID of the compression task
+  /// - outputPath: Path to the compressed video file (when completed)
+  /// - error: Error message (if error occurred)
+  static Stream<VideoCompressionUpdate> get videoCompressionUpdates {
+    return MoonNativePlatform.instance.videoCompressionUpdates;
+  }
+  
+  /// Cancels an ongoing video compression task
+  ///
+  /// Parameters:
+  /// - compressionId: The unique ID of the compression task to cancel
+  ///
+  /// Returns true if successfully cancelled, false otherwise
+  static Future<bool> cancelVideoCompression(String compressionId) {
+    return MoonNativePlatform.instance.cancelVideoCompression(compressionId);
+  }
 }
 
 enum MoonNavigationMode { threeButton, twoButton, fullGesture }
+
+/// Video compression quality presets
+class VideoQuality {
+  /// Low quality - smaller file size (25% quality)
+  static const int low = 25;
+  
+  /// Medium quality - balanced (50% quality)
+  static const int medium = 50;
+  
+  /// High quality - larger file size (75% quality)
+  static const int high = 75;
+  
+  /// Maximum quality - very large file size (100% quality)
+  static const int maximum = 100;
+}
+
+/// Standard video resolutions
+class VideoResolution {
+  /// 480p resolution (854x480)
+  static const String sd480 = '480p';
+  
+  /// 720p resolution (1280x720)
+  static const String hd720 = '720p';
+  
+  /// 1080p resolution (1920x1080)
+  static const String fullHd = '1080p';
+  
+  /// 2K resolution (2560x1440)
+  static const String qhd = '1440p';
+  
+  /// 4K resolution (3840x2160)
+  static const String uhd = '2160p';
+}

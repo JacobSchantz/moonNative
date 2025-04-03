@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:async';
 
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
@@ -108,4 +109,87 @@ abstract class MoonNativePlatform extends PlatformInterface {
   }) {
     throw UnimplementedError('compressImageFromBytes() has not been implemented.');
   }
+  
+  /// Enqueues a video for background compression
+  ///
+  /// Parameters:
+  /// - videoPath: Path to the input video file
+  /// - quality: Quality of the compressed video (0-100), where 100 is highest quality
+  /// - resolution: Target resolution e.g. '720p', '480p', '360p' (optional)
+  /// - bitrate: Target bitrate in bits per second (optional)
+  ///
+  /// Returns a Future<bool> that resolves to true if enqueuing was successful,
+  /// and the compressionId of the task is stored internally.
+  /// To monitor the progress, use the videoCompressionUpdates getter.
+  Future<bool> enqueueVideoCompression({
+    required String videoPath,
+    required int quality,
+    String? resolution,
+    int? bitrate,
+  }) {
+    throw UnimplementedError('enqueueVideoCompression() has not been implemented.');
+  }
+  
+  /// Stream of video compression status updates
+  ///
+  /// This stream emits updates for all ongoing video compression tasks, including:
+  /// - progress: A value between 0.0 and 1.0 indicating progress
+  /// - status: 'processing', 'completed', 'error', or 'cancelled'
+  /// - compressionId: The unique ID of the compression task
+  /// - outputPath: Path to the compressed video file (when completed)
+  /// - error: Error message (if error occurred)
+  Stream<VideoCompressionUpdate> get videoCompressionUpdates {
+    throw UnimplementedError('videoCompressionUpdates has not been implemented.');
+  }
+  
+  /// Cancels an ongoing video compression task
+  ///
+  /// Parameters:
+  /// - compressionId: The unique ID of the compression task to cancel
+  ///
+  /// Returns true if successfully cancelled, false otherwise
+  Future<bool> cancelVideoCompression(String compressionId) {
+    throw UnimplementedError('cancelVideoCompression() has not been implemented.');
+  }
+}
+
+/// Represents a video compression status update
+class VideoCompressionUpdate {
+  /// Current status of the compression task
+  final VideoCompressionStatus status;
+  
+  /// Progress value between 0.0 and 1.0
+  final double progress;
+  
+  /// Unique ID of the compression task
+  final String compressionId;
+  
+  /// Path to the output file (only valid when status is completed)
+  final String? outputPath;
+  
+  /// Error message (only valid when status is error)
+  final String? error;
+  
+  VideoCompressionUpdate({
+    required this.status,
+    required this.progress,
+    required this.compressionId,
+    this.outputPath,
+    this.error,
+  });
+}
+
+/// Possible states of a video compression task
+enum VideoCompressionStatus {
+  /// Compression is in progress
+  processing,
+  
+  /// Compression has completed successfully
+  completed,
+  
+  /// An error occurred during compression
+  error,
+  
+  /// Compression was cancelled
+  cancelled,
 }

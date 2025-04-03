@@ -39,6 +39,7 @@ dependencies:
   video_player: ^2.9.3 # For video playback and metadata extraction
   universal_html: ^2.2.4 # For web-specific HTML operations
   js: ^0.7.1 # For JavaScript interoperability
+  image_picker: ^1.0.5 # For selecting images and videos from device
 
 # Development-only dependencies (not included in published package)
 dev_dependencies:
