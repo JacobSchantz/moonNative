@@ -9,7 +9,7 @@ import 'moon_native_platform_interface.dart';
 // Export test screen so it can be imported in other projects
 export 'moon_native_test_screen.dart';
 // Export video compression types so they can be used in other projects
-export 'moon_native_platform_interface.dart' show VideoCompressionUpdate, VideoCompressionStatus;
+export 'moon_native_platform_interface.dart' show VideoCompressionUpdate, VideoCompressionStatus, MoonRingerMode;
 
 class MoonNative {
   /// Private constructor to prevent instantiation
@@ -72,9 +72,9 @@ class MoonNative {
   static Future<MoonNavigationMode?> getNavigationMode() async {
     final result = await MoonNativePlatform.instance.getNavigationMode();
     if (result == null) return null;
-    
+
     final navigationMode = result['navigationMode'] as int;
-    
+
     switch (navigationMode) {
       case 0:
         return MoonNavigationMode.threeButton;
@@ -200,7 +200,7 @@ class MoonNative {
       return compressedBytes;
     }
   }
-  
+
   /// Enqueues a video for background compression
   ///
   /// Parameters:
@@ -210,6 +210,7 @@ class MoonNative {
   /// - resolution: Target resolution e.g. '720p', '480p', '360p' (optional)
   ///   Use the VideoResolution class constants for common resolutions
   /// - bitrate: Target bitrate in bits per second (optional)
+  /// - customId: Optional custom identifier for tracking the task throughout its lifecycle
   ///
   /// Returns a Future<bool> that resolves to true if enqueuing was successful.
   /// To monitor the progress, use the videoCompressionUpdates getter.
@@ -218,6 +219,7 @@ class MoonNative {
     required int quality,
     String? resolution,
     int? bitrate,
+    String? customId,
   }) {
     assert(quality >= 0 && quality <= 100, 'quality must be between 0 and 100 inclusive');
     return MoonNativePlatform.instance.enqueueVideoCompression(
@@ -225,9 +227,10 @@ class MoonNative {
       quality: quality,
       resolution: resolution,
       bitrate: bitrate,
+      customId: customId,
     );
   }
-  
+
   /// Stream of video compression status updates
   ///
   /// This stream emits updates for all ongoing video compression tasks, including:
@@ -239,7 +242,7 @@ class MoonNative {
   static Stream<VideoCompressionUpdate> get videoCompressionUpdates {
     return MoonNativePlatform.instance.videoCompressionUpdates;
   }
-  
+
   /// Cancels an ongoing video compression task
   ///
   /// Parameters:
@@ -249,6 +252,118 @@ class MoonNative {
   static Future<bool> cancelVideoCompression(String compressionId) {
     return MoonNativePlatform.instance.cancelVideoCompression(compressionId);
   }
+
+  /// Gets the current ringer mode of the device
+  ///
+  /// Returns the ringer mode as a MoonRingerMode enum:
+  ///   - MoonRingerMode.silent: Silent mode (no sound)
+  ///   - MoonRingerMode.vibrate: Vibrate mode (no sound, with vibration)
+  ///   - MoonRingerMode.normal: Normal mode (sound on)
+  ///
+  /// Also returns a map with additional information:
+  ///   - hasSound: true if the ringer will produce sound
+  ///   - hasVibration: true if the ringer will vibrate
+  ///
+  /// Implementation details per platform:
+  ///   - Android: Uses AudioManager to get precise ringer mode
+  ///   - iOS: Uses notification settings to determine if device is in silent mode
+  ///
+  /// Returns null if getting the ringer mode fails.
+  static Future<Map<String, dynamic>?> getRingerMode() async {
+    try {
+      // Call platform implementation
+      final result = await MoonNativePlatform.instance.getRingerMode();
+      if (result == null) {
+        debugPrint('MoonNative: getRingerMode() returned null from platform implementation');
+        return null;
+      }
+
+      // Make sure we have a 'ringerMode' key
+      if (!result.containsKey('ringerMode')) {
+        debugPrint('MoonNative: Platform implementation returned map without ringerMode key');
+        // Default to normal mode if ringerMode key is missing
+        result['ringerMode'] = 2;
+      }
+
+      // Safe type casting with fallback
+      int ringerModeInt;
+      try {
+        ringerModeInt = result['ringerMode'] as int? ?? 2; // Default to normal mode
+      } catch (e) {
+        debugPrint('MoonNative: Error casting ringerMode to int: $e');
+        // Try to parse it if it's a string
+        if (result['ringerMode'] is String) {
+          try {
+            ringerModeInt = int.parse(result['ringerMode'] as String);
+          } catch (_) {
+            ringerModeInt = 2; // Default to normal if parsing fails
+          }
+        } else {
+          ringerModeInt = 2; // Default to normal mode
+        }
+      }
+
+      // Validate range
+      if (ringerModeInt < 0 || ringerModeInt > 2) {
+        debugPrint('MoonNative: Invalid ringerMode value: $ringerModeInt, using default');
+        ringerModeInt = 2; // Default to normal mode if out of range
+      }
+
+      // Map to enum
+      MoonRingerMode mode;
+      switch (ringerModeInt) {
+        case 0:
+          mode = MoonRingerMode.silent;
+          break;
+        case 1:
+          mode = MoonRingerMode.vibrate;
+          break;
+        case 2:
+        default:
+          mode = MoonRingerMode.normal;
+          break;
+      }
+
+      // Safely check for sound and vibration flags
+      bool hasSound = false;
+      bool hasVibration = false;
+
+      try {
+        hasSound = result['hasSound'] as bool? ?? false;
+      } catch (e) {
+        debugPrint('MoonNative: Error parsing hasSound: $e');
+        // If there's a string, try to parse it as bool
+        if (result['hasSound'] is String) {
+          hasSound = (result['hasSound'] as String).toLowerCase() == 'true';
+        }
+        // For ringerMode normal, assume sound is on
+        if (ringerModeInt == 2) hasSound = true;
+      }
+
+      try {
+        hasVibration = result['hasVibration'] as bool? ?? false;
+      } catch (e) {
+        debugPrint('MoonNative: Error parsing hasVibration: $e');
+        // If there's a string, try to parse it as bool
+        if (result['hasVibration'] is String) {
+          hasVibration = (result['hasVibration'] as String).toLowerCase() == 'true';
+        }
+        // For ringerMode vibrate or normal, assume vibration is on
+        if (ringerModeInt == 1 || ringerModeInt == 2) hasVibration = true;
+      }
+
+      return {
+        'mode': mode,
+        'hasSound': hasSound,
+        'hasVibration': hasVibration,
+      };
+    } catch (e, stackTrace) {
+      // Catch any other errors
+      debugPrint('MoonNative: Unexpected error in getRingerMode: $e');
+      debugPrint('MoonNative: Stack trace: $stackTrace');
+      return null;
+    }
+  }
 }
 
 enum MoonNavigationMode { threeButton, twoButton, fullGesture }
@@ -257,13 +372,13 @@ enum MoonNavigationMode { threeButton, twoButton, fullGesture }
 class VideoQuality {
   /// Low quality - smaller file size (25% quality)
   static const int low = 25;
-  
+
   /// Medium quality - balanced (50% quality)
   static const int medium = 50;
-  
+
   /// High quality - larger file size (75% quality)
   static const int high = 75;
-  
+
   /// Maximum quality - very large file size (100% quality)
   static const int maximum = 100;
 }
@@ -272,16 +387,16 @@ class VideoQuality {
 class VideoResolution {
   /// 480p resolution (854x480)
   static const String sd480 = '480p';
-  
+
   /// 720p resolution (1280x720)
   static const String hd720 = '720p';
-  
+
   /// 1080p resolution (1920x1080)
   static const String fullHd = '1080p';
-  
+
   /// 2K resolution (2560x1440)
   static const String qhd = '1440p';
-  
+
   /// 4K resolution (3840x2160)
   static const String uhd = '2160p';
 }

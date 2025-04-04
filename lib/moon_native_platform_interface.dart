@@ -117,6 +117,7 @@ abstract class MoonNativePlatform extends PlatformInterface {
   /// - quality: Quality of the compressed video (0-100), where 100 is highest quality
   /// - resolution: Target resolution e.g. '720p', '480p', '360p' (optional)
   /// - bitrate: Target bitrate in bits per second (optional)
+  /// - customId: Optional custom identifier for tracking the compression task
   ///
   /// Returns a Future<bool> that resolves to true if enqueuing was successful,
   /// and the compressionId of the task is stored internally.
@@ -126,6 +127,7 @@ abstract class MoonNativePlatform extends PlatformInterface {
     required int quality,
     String? resolution,
     int? bitrate,
+    String? customId,
   }) {
     throw UnimplementedError('enqueueVideoCompression() has not been implemented.');
   }
@@ -150,6 +152,19 @@ abstract class MoonNativePlatform extends PlatformInterface {
   /// Returns true if successfully cancelled, false otherwise
   Future<bool> cancelVideoCompression(String compressionId) {
     throw UnimplementedError('cancelVideoCompression() has not been implemented.');
+  }
+  
+  /// Gets the current ringer mode of the device
+  ///
+  /// Returns the ringer mode as a map containing:
+  /// - ringerMode: Integer representing the ringer mode:
+  ///   - 0: Silent mode - No sound, may or may not vibrate depending on device settings
+  ///   - 1: Vibrate mode - No sound, but will vibrate
+  ///   - 2: Normal mode - Sound and vibration are enabled
+  /// - hasSound: true if the ringer will produce sound
+  /// - hasVibration: true if the ringer will vibrate
+  Future<Map<String, dynamic>?> getRingerMode() {
+    throw UnimplementedError('getRingerMode() has not been implemented.');
   }
 }
 
@@ -192,4 +207,16 @@ enum VideoCompressionStatus {
   
   /// Compression was cancelled
   cancelled,
+}
+
+/// Possible ringer mode states
+enum MoonRingerMode {
+  /// Silent mode (no sound)
+  silent,
+  
+  /// Vibrate mode (no sound, with vibration)
+  vibrate,
+  
+  /// Normal mode (sound on)
+  normal,
 }

@@ -31,9 +31,11 @@ class VideoCompressionManager {
         videoPath: String,
         quality: Int,
         resolution: String?,
-        bitrate: Int?
+        bitrate: Int?,
+        customId: String? = nil
     ) -> Bool {
-        let compressionId = UUID().uuidString
+        // Use custom ID if provided, otherwise generate UUID
+        let compressionId = customId ?? UUID().uuidString
         
         // Create a new compression task
         let task = VideoCompressionTask(

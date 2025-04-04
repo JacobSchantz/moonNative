@@ -4,6 +4,7 @@ import Foundation
 import AVFoundation
 import AudioToolbox
 import CoreImage
+import QuartzCore // Required for CACurrentMediaTime in MuteDetect
 
 public class MoonNativePlugin: NSObject, FlutterPlugin {
   public static func register(with registrar: FlutterPluginRegistrar) {
@@ -159,12 +160,14 @@ public class MoonNativePlugin: NSObject, FlutterPlugin {
       
       let resolution = args["resolution"] as? String
       let bitrate = args["bitrate"] as? Int
+      let customId = args["customId"] as? String
       
       let success = VideoCompressionManager.shared.enqueueCompression(
         videoPath: videoPath,
         quality: quality,
         resolution: resolution,
-        bitrate: bitrate
+        bitrate: bitrate,
+        customId: customId
       )
       
       result(success)
@@ -178,6 +181,9 @@ public class MoonNativePlugin: NSObject, FlutterPlugin {
       
       let success = VideoCompressionManager.shared.cancelCompression(compressionId: compressionId)
       result(success)
+      
+    case "getRingerMode":
+      getRingerMode(result: result)
       
     default:
       result(FlutterMethodNotImplemented)
@@ -532,6 +538,59 @@ public class MoonNativePlugin: NSObject, FlutterPlugin {
         DispatchQueue.main.async {
           completion(nil, error)
         }
+      }
+    }
+  }
+
+  /// Gets the current ringer mode of the device
+  /// - Parameter result: Flutter result callback
+  private func getRingerMode(result: @escaping FlutterResult) {
+    // Use MuteDetect to check if silent switch is enabled
+    MuteDetect.shared.detectSound { isMuted in
+      do {
+        // Still use AVAudioSession for volume information
+        let audioSession = AVAudioSession.sharedInstance()
+        try audioSession.setCategory(.ambient)
+        try audioSession.setActive(true)
+        let outputVolume = audioSession.outputVolume
+        
+        // Default to normal mode
+        var ringerMode = 2 // Default = normal (matches Android's RINGER_MODE_NORMAL = 2)
+        var hasSound = true
+        
+        if isMuted {
+          // Device is in silent mode (mute switch is ON)
+          ringerMode = 0 // Silent (matches Android's RINGER_MODE_SILENT = 0)
+          hasSound = false
+          print("[MoonNative] Silent switch is ON (detected by MuteDetect)")
+        } else {
+          // Device is not in silent mode (mute switch is OFF)
+          print("[MoonNative] Silent switch is OFF (detected by MuteDetect)")
+          
+          // Even with mute switch off, volume could still be at 0
+          if outputVolume < 0.05 {
+            print("[MoonNative] Volume is extremely low: \(outputVolume)")
+          }
+        }
+        
+        // On iOS, devices always vibrate when in silent mode unless explicitly disabled
+        // Since there's no direct way to check vibration status, we assume it's enabled
+        // unless device is fully silent
+        let hasVibration = ringerMode != 0
+        
+        print("[MoonNative] Ringer mode detected on iOS: \(ringerMode) (hasSound: \(hasSound), hasVibration: \(hasVibration))")
+        
+        // Return the same map structure as Android for consistency
+        let resultMap: [String: Any] = [
+          "ringerMode": ringerMode,
+          "hasSound": hasSound, 
+          "hasVibration": hasVibration
+        ]
+        
+        result(resultMap)
+      } catch {
+        print("[MoonNative] Error in AVAudioSession during ringer mode detection: \(error)")
+        result(FlutterError(code: "RINGER_MODE_ERROR", message: "Error detecting ringer mode: \(error.localizedDescription)", details: nil))
       }
     }
   }

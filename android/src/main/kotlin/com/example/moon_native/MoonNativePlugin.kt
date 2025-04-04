@@ -97,6 +97,9 @@ class MoonNativePlugin: FlutterPlugin, MethodCallHandler {
       "getNavigationMode" -> {
         getNavigationMode(result)
       }
+      "getRingerMode" -> {
+        getRingerMode(result)
+      }
       "compressImage" -> {
         try {
           val imagePath = call.argument<String>("imagePath")
@@ -636,6 +639,59 @@ class MoonNativePlugin: FlutterPlugin, MethodCallHandler {
       Log.e("MoonNative", "Error detecting navigation mode: ${e.message}")
       e.printStackTrace()
       result.error("NAVIGATION_MODE_ERROR", "Error detecting navigation mode: ${e.message}", null)
+    }
+  }
+  
+  /**
+   * Gets the current ringer mode of the device
+   *
+   * @param result Flutter result callback
+   */
+  private fun getRingerMode(result: Result) {
+    try {
+      // Get the AudioManager from system services
+      val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+      val ringerMode = audioManager.ringerMode
+      
+      // Determine if sound and vibration are enabled based on the ringer mode
+      // RINGER_MODE_SILENT = 0: No sound
+      // RINGER_MODE_VIBRATE = 1: No sound, only vibration
+      // RINGER_MODE_NORMAL = 2: Sound and possibly vibration
+      
+      val hasSound = ringerMode == AudioManager.RINGER_MODE_NORMAL
+      
+      // For vibration, we need to check based on ringer mode and vibrate setting
+      val hasVibration = when (ringerMode) {
+        AudioManager.RINGER_MODE_SILENT -> false
+        AudioManager.RINGER_MODE_VIBRATE -> true
+        AudioManager.RINGER_MODE_NORMAL -> {
+          // In normal mode, check if vibrate while ringing is enabled
+          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            audioManager.isWiredHeadsetOn || Settings.System.getInt(
+              context.contentResolver,
+              "vibrate_when_ringing",
+              0
+            ) == 1
+          } else {
+            // For older Android versions, assume vibration is on in normal mode
+            true
+          }
+        }
+        else -> false
+      }
+      
+      Log.d("MoonNative", "Ringer mode detected: $ringerMode (hasSound: $hasSound, hasVibration: $hasVibration)")
+      
+      result.success(mapOf(
+        "ringerMode" to ringerMode,
+        "hasSound" to hasSound,
+        "hasVibration" to hasVibration
+      ))
+      
+    } catch (e: Exception) {
+      Log.e("MoonNative", "Error detecting ringer mode: ${e.message}")
+      e.printStackTrace()
+      result.error("RINGER_MODE_ERROR", "Error detecting ringer mode: ${e.message}", null)
     }
   }
 }

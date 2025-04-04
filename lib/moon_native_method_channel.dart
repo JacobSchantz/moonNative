@@ -76,6 +76,20 @@ class MethodChannelMoonNative extends MoonNativePlatform {
       return null;
     }
   }
+  
+  @override
+  Future<Map<String, dynamic>?> getRingerMode() async {
+    try {
+      final result = await methodChannel.invokeMethod<Map<Object?, Object?>>('getRingerMode');
+      if (result == null) return null;
+
+      // Convert from Map<Object?, Object?> to Map<String, dynamic>
+      return result.map((key, value) => MapEntry(key.toString(), value));
+    } catch (e) {
+      debugPrint('Error getting ringer mode: $e');
+      return null;
+    }
+  }
 
   @override
   Future<String?> compressImageFromPath({
@@ -118,21 +132,25 @@ class MethodChannelMoonNative extends MoonNativePlatform {
     required int quality,
     String? resolution,
     int? bitrate,
+    String? customId,
   }) async {
     // Initialize event listener on first use
     _initializeEventListenerIfNeeded();
     
-    // Generate unique ID for this compression task
-    final compressionId = _generateUniqueId();
+    // Use custom ID if provided, otherwise generate a unique ID
+    final compressionId = customId ?? _generateUniqueId();
     
     // Prepare method arguments
     final Map<String, dynamic> args = {
-      'compressionId': compressionId,
       'videoPath': videoPath,
       'quality': quality,
       if (resolution != null) 'resolution': resolution,
       if (bitrate != null) 'bitrate': bitrate,
+      if (customId != null) 'customId': customId,
     };
+    
+    // Store the ID that will be used for tracking (either custom or generated)
+    args['compressionId'] = compressionId;
     
     // Create initial update
     final initialUpdate = VideoCompressionUpdate(

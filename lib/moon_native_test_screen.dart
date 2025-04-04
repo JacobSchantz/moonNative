@@ -37,7 +37,11 @@ class _MoonNativeTestWidgetState extends State<MoonNativeTestWidget> {
 
   // Navigation mode information
   String _navigationModeInfo = 'Press the button to detect navigation mode';
-  bool _isLoading = false;
+  bool _isNavigationLoading = false;
+  
+  // Ringer mode information
+  String _ringerModeInfo = 'Press the button to detect ringer mode';
+  bool _isRingerLoading = false;
 
   @override
   void dispose() {
@@ -47,7 +51,7 @@ class _MoonNativeTestWidgetState extends State<MoonNativeTestWidget> {
   // Get navigation mode information
   Future<void> _getNavigationMode() async {
     setState(() {
-      _isLoading = true;
+      _isNavigationLoading = true;
       _navigationModeInfo = 'Detecting navigation mode...';
     });
 
@@ -89,7 +93,57 @@ class _MoonNativeTestWidgetState extends State<MoonNativeTestWidget> {
       });
     } finally {
       setState(() {
-        _isLoading = false;
+        _isNavigationLoading = false;
+      });
+    }
+  }
+  
+  // Get ringer mode information
+  Future<void> _getRingerMode() async {
+    setState(() {
+      _isRingerLoading = true;
+      _ringerModeInfo = 'Detecting ringer mode...';
+    });
+
+    try {
+      final ringerInfo = await MoonNative.getRingerMode();
+      
+      if (ringerInfo != null) {
+        final mode = ringerInfo['mode'] as MoonRingerMode;
+        final hasSound = ringerInfo['hasSound'] as bool;
+        final hasVibration = ringerInfo['hasVibration'] as bool;
+        
+        String modeDescription;
+        switch (mode) {
+          case MoonRingerMode.silent:
+            modeDescription = 'Silent mode';
+            break;
+          case MoonRingerMode.vibrate:
+            modeDescription = 'Vibrate mode';
+            break;
+          case MoonRingerMode.normal:
+            modeDescription = 'Normal mode';
+            break;
+        }
+        
+        setState(() {
+          _ringerModeInfo = 'Ringer Mode: $modeDescription\n'
+                        'Has Sound: ${hasSound ? 'Yes' : 'No'}\n'
+                        'Has Vibration: ${hasVibration ? 'Yes' : 'No'}';
+        });
+      } else {
+        setState(() {
+          _ringerModeInfo = 'Could not detect ringer mode.\n'
+                        'There was an error retrieving the device ringer mode.';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _ringerModeInfo = 'Error detecting ringer mode: $e';
+      });
+    } finally {
+      setState(() {
+        _isRingerLoading = false;
       });
     }
   }
@@ -177,14 +231,68 @@ class _MoonNativeTestWidgetState extends State<MoonNativeTestWidget> {
                     const SizedBox(height: 16),
                     Center(
                       child: ElevatedButton(
-                        onPressed: _isLoading ? null : _getNavigationMode,
-                        child: _isLoading
+                        onPressed: _isNavigationLoading ? null : _getNavigationMode,
+                        child: _isNavigationLoading
                             ? const SizedBox(
                                 width: 20,
                                 height: 20,
                                 child: CircularProgressIndicator(strokeWidth: 2),
                               )
                             : const Text('Detect Navigation Mode'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            
+            const SizedBox(height: 32),
+            const Divider(),
+            const SizedBox(height: 32),
+            
+            // Ringer Mode Section
+            const Text(
+              'Ringer Mode Detection',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            
+            // Ringer Mode Widget
+            Card(
+              elevation: 4,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Detect device ringer mode (silent, vibrate, or normal)',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade200,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        _ringerModeInfo,
+                        style: TextStyle(fontFamily: 'monospace'),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Center(
+                      child: ElevatedButton(
+                        onPressed: _isRingerLoading ? null : _getRingerMode,
+                        child: _isRingerLoading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Text('Detect Ringer Mode'),
                       ),
                     ),
                   ],
