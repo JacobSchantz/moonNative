@@ -2,6 +2,8 @@ import Foundation
 import AudioToolbox
 import QuartzCore
 
+// Make sure this file can be found by other Swift files in the module
+
 public class MuteDetect: NSObject {
 
     public static let shared = MuteDetect()

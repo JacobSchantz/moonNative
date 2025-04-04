@@ -4,7 +4,109 @@ import Foundation
 import AVFoundation
 import AudioToolbox
 import CoreImage
-import QuartzCore // Required for CACurrentMediaTime in MuteDetect
+import QuartzCore
+
+// Inline implementation of mute detection to avoid compile-time errors
+fileprivate class InlineMuteDetector {
+    static let shared = InlineMuteDetector()
+    
+    private var soundID: SystemSoundID = 0
+    private var completions: [((Bool) -> ())] = []
+    private var startTime: CFTimeInterval? = nil
+    
+    // Public accessor to check if sound detection is available
+    var isSoundDetectionAvailable: Bool {
+        return soundID != 0
+    }
+    
+    private init() {
+        setupSilentSound()
+    }
+    
+    private func setupSilentSound() {
+        // Try to find the mute.aiff file in various locations
+        let soundURL = findSoundFile()
+        guard let url = soundURL else {
+            print("[MoonNative] Warning: Could not find mute.aiff sound file")
+            return
+        }
+        
+        let result = AudioServicesCreateSystemSoundID(url as CFURL, &self.soundID)
+        if result == kAudioServicesNoError {
+            let weakSelf = UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
+            
+            AudioServicesAddSystemSoundCompletion(self.soundID, CFRunLoopGetMain(), CFRunLoopMode.defaultMode.rawValue, { soundId, weakSelfPointer in
+                guard let weakSelfPointer = weakSelfPointer else { return }
+                let weakSelfValue = Unmanaged<InlineMuteDetector>.fromOpaque(weakSelfPointer).takeUnretainedValue()
+                guard let startTime = weakSelfValue.startTime else { return }
+                
+                // If callback is triggered quickly (< 0.1s), the silent switch is ON
+                let isMute = CACurrentMediaTime() - startTime < 0.1
+                
+                weakSelfValue.completions.forEach { completion in
+                    completion(isMute)
+                }
+                weakSelfValue.completions.removeAll()
+                weakSelfValue.startTime = nil
+            }, weakSelf)
+            
+            var yes: UInt32 = 1
+            AudioServicesSetProperty(kAudioServicesPropertyIsUISound,
+                                     UInt32(MemoryLayout.size(ofValue: self.soundID)),
+                                     &self.soundID,
+                                     UInt32(MemoryLayout.size(ofValue: yes)),
+                                     &yes)
+        }
+    }
+    
+    private func findSoundFile() -> URL? {
+        // Try main bundle
+        if let url = Bundle.main.url(forResource: "mute", withExtension: "aiff") {
+            return url
+        }
+        
+        // Try plugin bundle
+        let pluginBundle = Bundle(for: InlineMuteDetector.self)
+        if let url = pluginBundle.url(forResource: "mute", withExtension: "aiff") {
+            return url
+        }
+        
+        // Try with the custom name
+        if let url = pluginBundle.url(forResource: "ios_Assets_mute", withExtension: "aiff") {
+            return url
+        }
+        
+        // Try resource bundle
+        if let bundleURL = pluginBundle.url(forResource: "MoonNativeResources", withExtension: "bundle"),
+           let resourceBundle = Bundle(url: bundleURL),
+           let url = resourceBundle.url(forResource: "ios_Assets_mute", withExtension: "aiff") {
+            return url
+        }
+        
+        return nil
+    }
+    
+    func detectMute(completion: @escaping (Bool) -> Void) {
+        guard soundID != 0 else {
+            // Fallback if sound setup failed
+            completion(false)
+            return
+        }
+        
+        self.completions.append(completion)
+        if self.startTime == nil {
+            self.startTime = CACurrentMediaTime()
+            AudioServicesPlaySystemSound(self.soundID)
+        }
+    }
+    
+    deinit {
+        if self.soundID != 0 {
+            AudioServicesRemoveSystemSoundCompletion(self.soundID)
+            AudioServicesDisposeSystemSoundID(self.soundID)
+        }
+    }
+}
 
 public class MoonNativePlugin: NSObject, FlutterPlugin {
   public static func register(with registrar: FlutterPluginRegistrar) {
@@ -545,42 +647,71 @@ public class MoonNativePlugin: NSObject, FlutterPlugin {
   /// Gets the current ringer mode of the device
   /// - Parameter result: Flutter result callback
   private func getRingerMode(result: @escaping FlutterResult) {
-    // Use MuteDetect to check if silent switch is enabled
-    MuteDetect.shared.detectSound { isMuted in
+    // First try to use our inline mute detector to check if silent switch is enabled
+    if InlineMuteDetector.shared.isSoundDetectionAvailable {
+      InlineMuteDetector.shared.detectMute { isMuted in
+        do {
+          // Still use AVAudioSession for volume information
+          let audioSession = AVAudioSession.sharedInstance()
+          try audioSession.setCategory(.ambient)
+          try audioSession.setActive(true)
+          let outputVolume = audioSession.outputVolume
+          
+          // Default to normal mode
+          var ringerMode = 2 // Default = normal (matches Android's RINGER_MODE_NORMAL = 2)
+          var hasSound = true
+          
+          if isMuted {
+            // Device is in silent mode (mute switch is ON)
+            ringerMode = 0 // Silent (matches Android's RINGER_MODE_SILENT = 0)
+            hasSound = false
+            print("[MoonNative] Silent switch is ON (detected by InlineMuteDetector)")
+          } else {
+            // Device is not in silent mode (mute switch is OFF)
+            print("[MoonNative] Silent switch is OFF (detected by InlineMuteDetector)")
+            
+            // Even with mute switch off, volume could still be at 0
+            if outputVolume < 0.05 {
+              print("[MoonNative] Volume is extremely low: \(outputVolume)")
+            }
+          }
+          
+          // On iOS, devices always vibrate when in silent mode unless explicitly disabled
+          // Since there's no direct way to check vibration status, we assume it's enabled
+          // unless device is fully silent
+          let hasVibration = ringerMode != 0
+          
+          print("[MoonNative] Ringer mode detected on iOS: \(ringerMode) (hasSound: \(hasSound), hasVibration: \(hasVibration))")
+          
+          // Return the same map structure as Android for consistency
+          let resultMap: [String: Any] = [
+            "ringerMode": ringerMode,
+            "hasSound": hasSound, 
+            "hasVibration": hasVibration
+          ]
+          
+          result(resultMap)
+        } catch {
+          print("[MoonNative] Error in AVAudioSession during ringer mode detection: \(error)")
+          result(FlutterError(code: "RINGER_MODE_ERROR", message: "Error detecting ringer mode: \(error.localizedDescription)", details: nil))
+        }
+      }
+    } else {
+      // Fallback if mute detection isn't available - use a simple volume check instead
       do {
-        // Still use AVAudioSession for volume information
         let audioSession = AVAudioSession.sharedInstance()
         try audioSession.setCategory(.ambient)
         try audioSession.setActive(true)
         let outputVolume = audioSession.outputVolume
         
         // Default to normal mode
-        var ringerMode = 2 // Default = normal (matches Android's RINGER_MODE_NORMAL = 2)
-        var hasSound = true
+        let ringerMode = (outputVolume < 0.05) ? 0 : 2 // 0=silent, 2=normal
+        let hasSound = (ringerMode == 2)
+        let hasVibration = true // Assume vibration is on by default
         
-        if isMuted {
-          // Device is in silent mode (mute switch is ON)
-          ringerMode = 0 // Silent (matches Android's RINGER_MODE_SILENT = 0)
-          hasSound = false
-          print("[MoonNative] Silent switch is ON (detected by MuteDetect)")
-        } else {
-          // Device is not in silent mode (mute switch is OFF)
-          print("[MoonNative] Silent switch is OFF (detected by MuteDetect)")
-          
-          // Even with mute switch off, volume could still be at 0
-          if outputVolume < 0.05 {
-            print("[MoonNative] Volume is extremely low: \(outputVolume)")
-          }
-        }
+        print("[MoonNative] Ringer detection fallback: volume = \(outputVolume), mode = \(ringerMode)")
         
-        // On iOS, devices always vibrate when in silent mode unless explicitly disabled
-        // Since there's no direct way to check vibration status, we assume it's enabled
-        // unless device is fully silent
-        let hasVibration = ringerMode != 0
-        
-        print("[MoonNative] Ringer mode detected on iOS: \(ringerMode) (hasSound: \(hasSound), hasVibration: \(hasVibration))")
-        
-        // Return the same map structure as Android for consistency
+        // Return the map structure
         let resultMap: [String: Any] = [
           "ringerMode": ringerMode,
           "hasSound": hasSound, 
@@ -589,10 +720,19 @@ public class MoonNativePlugin: NSObject, FlutterPlugin {
         
         result(resultMap)
       } catch {
-        print("[MoonNative] Error in AVAudioSession during ringer mode detection: \(error)")
+        print("[MoonNative] Error in AVAudioSession during ringer mode detection fallback: \(error)")
         result(FlutterError(code: "RINGER_MODE_ERROR", message: "Error detecting ringer mode: \(error.localizedDescription)", details: nil))
       }
     }
   }
-
+  
+  /// Gets an instance of the MuteDetect class or nil if it can't be instantiated
+  private func getMuteDetectInstance() -> NSObject? {
+    // This approach uses runtime lookup which is more resilient to compilation errors
+    if let muteDetectClass = NSClassFromString("MuteDetect") as? NSObject.Type,
+       let sharedProperty = muteDetectClass.value(forKey: "shared") as? NSObject {
+      return sharedProperty
+    }
+    return nil
+  }
 }
