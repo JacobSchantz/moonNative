@@ -61,19 +61,26 @@ class MoonNative {
     return MoonNativePlatform.instance.rotateVideo(videoPath, clockwiseQuarterTurns);
   }
 
-  /// Plays a short beep sound
+  /// Plays a system sound
   ///
   /// Parameters:
   /// - frequency: (Optional) The frequency of the beep in Hz (Android only)
   /// - durationMs: (Optional) The duration of the beep in milliseconds (Android only)
   /// - volume: (Optional) The volume of the beep from 0.0 to 1.0 (Android only)
+  /// - soundId: (Optional) The iOS system sound ID to play (iOS only), defaults to 1304 (chime sound)
+  ///           Some common system sound IDs:
+  ///           - 1000: Standard system sound
+  ///           - 1057: Standard beep
+  ///           - 1304: Mail notification (chime)
+  ///           - 1307: Message sent (swoosh)
   ///
-  /// Returns true if the beep was played successfully, false otherwise
-  static Future<bool> playBeep({int frequency = 1000, int durationMs = 200, double volume = 1.0}) {
+  /// Returns true if the sound was played successfully, false otherwise
+  static Future<bool> playBeep({int frequency = 1000, int durationMs = 200, double volume = 1.0, int? soundId}) {
     return MoonNativePlatform.instance.playBeep(
       frequency: frequency,
       durationMs: durationMs,
       volume: volume,
+      soundId: soundId,
     );
   }
 

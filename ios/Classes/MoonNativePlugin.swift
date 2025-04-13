@@ -162,8 +162,9 @@ public class MoonNativePlugin: NSObject, FlutterPlugin {
       let frequency = args?["frequency"] as? Int ?? 1000
       let durationMs = args?["durationMs"] as? Int ?? 200
       let volume = args?["volume"] as? Double ?? 1.0
+      let soundId = args?["soundId"] as? Int ?? 1304 // Default to chime sound (1304) if not specified
       
-      playBeep(frequency: frequency, durationMs: durationMs, volume: Float(volume)) { success, error in
+      playBeep(frequency: frequency, durationMs: durationMs, volume: Float(volume), soundId: soundId) { success, error in
         if let error = error {
           result(FlutterError(code: "BEEP_ERROR", message: error.localizedDescription, details: nil))
         } else {
@@ -468,17 +469,18 @@ public class MoonNativePlugin: NSObject, FlutterPlugin {
     }
   }
   
-  /// Plays a short beep sound
+  /// Plays a system sound
   /// - Parameters:
   ///   - frequency: The frequency of the beep in Hz (not used in iOS implementation - uses system sound)
-  ///   - durationMs: The duration of the beep in milliseconds (not used in iOS implementation)
+  ///   - durationMs: The duration of the beep in milliseconds (used for completion timing)
   ///   - volume: The volume of the beep from 0.0 to 1.0 (not used in iOS implementation)
+  ///   - soundId: The iOS system sound ID to play (defaults to 1304 - chime sound)
   ///   - completion: Callback with the success status or error
-  private func playBeep(frequency: Int, durationMs: Int, volume: Float, completion: @escaping (Bool, Error?) -> Void) {
+  private func playBeep(frequency: Int, durationMs: Int, volume: Float, soundId: Int = 1304, completion: @escaping (Bool, Error?) -> Void) {
     do {
-      // On iOS, we'll use a system sound for the beep
-      // Note: System sound 1057 is a standard beep sound on iOS
-      AudioServicesPlaySystemSound(1057)
+      // Play the specified system sound
+      // Note: Default is 1304 (mail received chime sound)
+      AudioServicesPlaySystemSound(UInt32(soundId))
       
       // Since AudioServicesPlaySystemSound is non-blocking and has no completion callback,
       // we'll wait for the approximate duration before calling the completion handler
@@ -486,7 +488,7 @@ public class MoonNativePlugin: NSObject, FlutterPlugin {
         completion(true, nil)
       }
       
-      print("Played system beep sound")
+      print("Played system sound: \(soundId)")
     } catch {
       print("Error playing beep: \(error.localizedDescription)")
       completion(false, error)

@@ -54,12 +54,18 @@ class MethodChannelMoonNative extends MoonNativePlatform {
   }
 
   @override
-  Future<bool> playBeep({int frequency = 1000, int durationMs = 200, double volume = 1.0}) async {
+  Future<bool> playBeep({int frequency = 1000, int durationMs = 200, double volume = 1.0, int? soundId}) async {
     final Map<String, dynamic> args = {
       'frequency': frequency,
       'durationMs': durationMs,
       'volume': volume,
     };
+    
+    // Add soundId to args if provided (for iOS)
+    if (soundId != null) {
+      args['soundId'] = soundId;
+    }
+    
     return await methodChannel.invokeMethod<bool>('playBeep', args) ?? false;
   }
 
