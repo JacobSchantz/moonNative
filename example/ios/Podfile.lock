@@ -39,7 +39,7 @@ SPEC CHECKSUMS:
   Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
   image_picker_ios: 7fe1ff8e34c1790d6fff70a32484959f563a928a
   integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
-  moon_native: 64e64cfa2e68af5907200b9e9196a7402551870f
+  moon_native: b02e57b26ad449ddb1bdc53ca01e3c7cbc959a8d
   path_provider_foundation: 080d55be775b7414fd5a5ef3ac137b97b097e564
   video_player_avfoundation: 2cef49524dd1f16c5300b9cd6efd9611ce03639b
 

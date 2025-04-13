@@ -38,10 +38,14 @@ class _MoonNativeTestWidgetState extends State<MoonNativeTestWidget> {
   // Navigation mode information
   String _navigationModeInfo = 'Press the button to detect navigation mode';
   bool _isNavigationLoading = false;
-  
+
   // Ringer mode information
   String _ringerModeInfo = 'Press the button to detect ringer mode';
   bool _isRingerLoading = false;
+
+  // Beep sound testing information
+  String _beepSoundInfo = 'Press the button to test beep sounds';
+  bool _isBeepTesting = false;
 
   @override
   void dispose() {
@@ -57,11 +61,11 @@ class _MoonNativeTestWidgetState extends State<MoonNativeTestWidget> {
 
     try {
       final navigationMode = await MoonNative.getNavigationMode();
-      
+
       if (navigationMode != null) {
         String modeDescription;
         bool isGestureNavigation;
-        
+
         switch (navigationMode) {
           case MoonNavigationMode.threeButton:
             modeDescription = '3-button navigation (back, home, recents)';
@@ -76,15 +80,15 @@ class _MoonNativeTestWidgetState extends State<MoonNativeTestWidget> {
             isGestureNavigation = true;
             break;
         }
-        
+
         setState(() {
           _navigationModeInfo = 'Navigation Type: ${isGestureNavigation ? 'Gesture' : 'Button'}\n'
-                              'Navigation Mode: $modeDescription';
+              'Navigation Mode: $modeDescription';
         });
       } else {
         setState(() {
           _navigationModeInfo = 'Could not detect navigation mode.\n'
-                              'This feature is only available on Android 10+';
+              'This feature is only available on Android 10+';
         });
       }
     } catch (e) {
@@ -97,7 +101,7 @@ class _MoonNativeTestWidgetState extends State<MoonNativeTestWidget> {
       });
     }
   }
-  
+
   // Get ringer mode information
   Future<void> _getRingerMode() async {
     setState(() {
@@ -107,12 +111,12 @@ class _MoonNativeTestWidgetState extends State<MoonNativeTestWidget> {
 
     try {
       final ringerInfo = await MoonNative.getRingerMode();
-      
+
       if (ringerInfo != null) {
         final mode = ringerInfo['mode'] as MoonRingerMode;
         final hasSound = ringerInfo['hasSound'] as bool;
         final hasVibration = ringerInfo['hasVibration'] as bool;
-        
+
         String modeDescription;
         switch (mode) {
           case MoonRingerMode.silent:
@@ -125,16 +129,16 @@ class _MoonNativeTestWidgetState extends State<MoonNativeTestWidget> {
             modeDescription = 'Normal mode';
             break;
         }
-        
+
         setState(() {
           _ringerModeInfo = 'Ringer Mode: $modeDescription\n'
-                        'Has Sound: ${hasSound ? 'Yes' : 'No'}\n'
-                        'Has Vibration: ${hasVibration ? 'Yes' : 'No'}';
+              'Has Sound: ${hasSound ? 'Yes' : 'No'}\n'
+              'Has Vibration: ${hasVibration ? 'Yes' : 'No'}';
         });
       } else {
         setState(() {
           _ringerModeInfo = 'Could not detect ringer mode.\n'
-                        'There was an error retrieving the device ringer mode.';
+              'There was an error retrieving the device ringer mode.';
         });
       }
     } catch (e) {
@@ -144,6 +148,44 @@ class _MoonNativeTestWidgetState extends State<MoonNativeTestWidget> {
     } finally {
       setState(() {
         _isRingerLoading = false;
+      });
+    }
+  }
+
+  // Play multiple beep sounds
+  Future<void> _testBeepSounds() async {
+    setState(() {
+      _isBeepTesting = true;
+      _beepSoundInfo = 'Testing beep sounds...';
+    });
+
+    try {
+      // Play different beep sounds using real iOS system sound IDs
+      await MoonNative.playBeep(soundId: 1016, frequency: 500, durationMs: 200); // Standard Trinity tone
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      await MoonNative.playBeep(soundId: 1007, frequency: 1000, durationMs: 200); // Standard SMS tone
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      await MoonNative.playBeep(soundId: 1004, frequency: 1500, durationMs: 200); // Standard New Mail tone
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      await MoonNative.playBeep(soundId: 1103, frequency: 2000, durationMs: 500); // Standard Calendar Alert
+
+      setState(() {
+        _beepSoundInfo = 'Played iOS system sounds:\n'
+            '- ID: 1016 - Trinity tone\n'
+            '- ID: 1007 - SMS Alert\n'
+            '- ID: 1004 - New Mail\n'
+            '- ID: 1103 - Calendar Alert';
+      });
+    } catch (e) {
+      setState(() {
+        _beepSoundInfo = 'Error playing beep sounds: $e';
+      });
+    } finally {
+      setState(() {
+        _isBeepTesting = false;
       });
     }
   }
@@ -178,11 +220,11 @@ class _MoonNativeTestWidgetState extends State<MoonNativeTestWidget> {
             const SizedBox(height: 16),
             // Video Processing Widget
             VideoProcessingWidget(defaultVideoUrl: _fixedVideoUrl),
-            
+
             const SizedBox(height: 32),
             const Divider(),
             const SizedBox(height: 32),
-            
+
             // Video Compression Section
             const Text(
               'Video Compression',
@@ -191,18 +233,18 @@ class _MoonNativeTestWidgetState extends State<MoonNativeTestWidget> {
             const SizedBox(height: 16),
             // Video Compression Widget
             VideoCompressionWidget(defaultVideoUrl: _fixedVideoUrl),
-            
+
             const SizedBox(height: 32),
             const Divider(),
             const SizedBox(height: 32),
-            
+
             // Navigation Mode Section
             const Text(
               'Navigation Mode Detection',
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
-            
+
             // Navigation Mode Widget
             Card(
               elevation: 4,
@@ -245,18 +287,18 @@ class _MoonNativeTestWidgetState extends State<MoonNativeTestWidget> {
                 ),
               ),
             ),
-            
+
             const SizedBox(height: 32),
             const Divider(),
             const SizedBox(height: 32),
-            
+
             // Ringer Mode Section
             const Text(
               'Ringer Mode Detection',
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
-            
+
             // Ringer Mode Widget
             Card(
               elevation: 4,
@@ -299,7 +341,61 @@ class _MoonNativeTestWidgetState extends State<MoonNativeTestWidget> {
                 ),
               ),
             ),
-            
+
+            const SizedBox(height: 32),
+            const Divider(),
+            const SizedBox(height: 32),
+
+            // Beep Sound Testing Section
+            const Text(
+              'Beep Sound Testing',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+
+            // Beep Sound Testing Widget
+            Card(
+              elevation: 4,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Test multiple beep sounds with different frequencies',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade200,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        _beepSoundInfo,
+                        style: TextStyle(fontFamily: 'monospace'),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Center(
+                      child: ElevatedButton(
+                        onPressed: _isBeepTesting ? null : _testBeepSounds,
+                        child: _isBeepTesting
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Text('Test Beep Sounds'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
             const SizedBox(height: 40),
           ],
         ),
