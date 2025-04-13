@@ -5,12 +5,11 @@
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:html' as html;
-import 'dart:js_util' as js_util;
+import 'package:web/web.dart' as html;
+import 'dart:js_interop';
 import 'dart:typed_data';
 
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
-import 'package:web/web.dart' as web;
 
 import 'moon_native_platform_interface.dart';
 
@@ -26,8 +25,28 @@ class MoonNativeWeb extends MoonNativePlatform {
   /// Returns a [String] containing the version of the platform.
   @override
   Future<String?> getPlatformVersion() async {
-    final version = web.window.navigator.userAgent;
+    final version = html.window.navigator.userAgent;
     return version;
+  }
+
+  @override
+  bool isChrome() {
+    return html.window.navigator.userAgent.contains('chrome');
+  }
+
+  @override
+  void refreshPage() {
+    html.window.location.reload();
+  }
+
+  @override
+  void requestFullscreen() {
+    html.document.documentElement?.requestFullscreen();
+  }
+
+  @override
+  void exitFullscreen() {
+    html.document.exitFullscreen();
   }
 
   /// Rotates a video by the specified quarter turns.
@@ -49,13 +68,13 @@ class MoonNativeWeb extends MoonNativePlatform {
       print('Web platform: Trimming video at $videoPath from $startTime to $endTime');
 
       // Create a video element to load the source
-      final video = html.VideoElement()
+      final video = html.HTMLVideoElement()
         ..src = videoPath
         ..style.display = 'none';
       html.document.body?.append(video);
 
       // Create a simple loading indicator
-      final loadingDiv = html.DivElement()
+      final loadingDiv = html.HTMLDivElement()
         ..id = 'video-trim-loading'
         ..style.position = 'fixed'
         ..style.top = '50%'
@@ -104,7 +123,8 @@ class MoonNativeWeb extends MoonNativePlatform {
       // Create a download link
       final url = Uri.parse(videoPath).replace(queryParameters: {'$metadataParam': 'true'}).toString();
 
-      final anchor = html.AnchorElement(href: url)
+      final anchor = html.HTMLAnchorElement()
+        ..href = url
         ..download = outputName
         ..style.display = 'none';
       html.document.body?.append(anchor);
@@ -134,18 +154,18 @@ class MoonNativeWeb extends MoonNativePlatform {
   }) async {
     try {
       print('Web platform: Compressing image at $imagePath with quality $quality');
-      
+
       // Create an image element to load the source
-      final img = html.ImageElement()
+      final img = html.HTMLImageElement()
         ..src = imagePath
         ..style.display = 'none';
       html.document.body?.append(img);
-      
+
       // Wait for the image to load
       final completer = Completer<void>();
       img.onLoad.listen((_) => completer.complete());
       img.onError.listen((event) => completer.completeError('Failed to load image'));
-      
+
       try {
         await completer.future;
       } catch (e) {
@@ -153,40 +173,43 @@ class MoonNativeWeb extends MoonNativePlatform {
         img.remove();
         return null;
       }
-      
+
       // Create a canvas to draw the image
-      final canvas = html.CanvasElement(width: img.naturalWidth, height: img.naturalHeight);
+      final canvas = html.HTMLCanvasElement();
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
       final ctx = canvas.context2D;
       ctx.drawImage(img, 0, 0);
-      
+
       // Get the extension
       final extension = format?.toLowerCase() ?? (imagePath.contains('.') ? imagePath.split('.').last : 'jpg');
       final mimeType = 'image/${extension == 'jpg' ? 'jpeg' : extension}';
-      
+
       // Convert to data URL with specified quality
       final dataUrl = canvas.toDataUrl(mimeType, quality / 100);
-      
+
       // Extract filename from path
       final fileName = imagePath.split('/').last;
       final baseName = fileName.split('.').first;
       final outputName = '${baseName}_compressed.$extension';
-      
+
       // Create a download link
-      final anchor = html.AnchorElement(href: dataUrl)
+      final anchor = html.HTMLAnchorElement()
+        ..href = dataUrl
         ..download = outputName
         ..style.display = 'none';
       html.document.body?.append(anchor);
-      
+
       // Trigger the download
       anchor.click();
-      
+
       // Clean up
       Future.delayed(const Duration(milliseconds: 500), () {
         img.remove();
         canvas.remove();
         anchor.remove();
       });
-      
+
       return outputName;
     } catch (e) {
       print('Error compressing image on web: $e');
@@ -202,24 +225,24 @@ class MoonNativeWeb extends MoonNativePlatform {
   }) async {
     try {
       print('Web platform: Compressing image bytes with quality $quality');
-      
+
       // Convert bytes to a data URL
       final extension = format?.toLowerCase() ?? 'jpg';
       final mimeType = 'image/${extension == 'jpg' ? 'jpeg' : extension}';
       final base64 = base64Encode(imageBytes);
       final dataUrl = 'data:$mimeType;base64,$base64';
-      
+
       // Create an image element to load the source
-      final img = html.ImageElement()
+      final img = html.HTMLImageElement()
         ..src = dataUrl
         ..style.display = 'none';
       html.document.body?.append(img);
-      
+
       // Wait for the image to load
       final completer = Completer<void>();
       img.onLoad.listen((_) => completer.complete());
       img.onError.listen((event) => completer.completeError('Failed to load image from bytes'));
-      
+
       try {
         await completer.future;
       } catch (e) {
@@ -227,23 +250,25 @@ class MoonNativeWeb extends MoonNativePlatform {
         img.remove();
         return null;
       }
-      
+
       // Create a canvas to draw the image
-      final canvas = html.CanvasElement(width: img.naturalWidth, height: img.naturalHeight);
+      final canvas = html.HTMLCanvasElement();
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
       final ctx = canvas.context2D;
       ctx.drawImage(img, 0, 0);
-      
+
       // Convert to data URL with specified quality
       final compressedDataUrl = canvas.toDataUrl(mimeType, quality / 100);
-      
+
       // Extract the base64 data
       final compressedBase64 = compressedDataUrl.split(',')[1];
       final compressedBytes = base64Decode(compressedBase64);
-      
+
       // Clean up
       img.remove();
       canvas.remove();
-      
+
       return Uint8List.fromList(compressedBytes);
     } catch (e) {
       print('Error compressing image bytes on web: $e');

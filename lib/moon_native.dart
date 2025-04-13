@@ -20,6 +20,22 @@ class MoonNative {
     return MoonNativePlatform.instance.getPlatformVersion();
   }
 
+  static bool isChrome() {
+    return false;
+  }
+
+  static void refreshPage() {
+    throw UnimplementedError('Not supported on mobile');
+  }
+
+  static void requestFullscreen() {
+    throw UnimplementedError('Not supported on mobile');
+  }
+
+  static void exitFullscreen() {
+    throw UnimplementedError('Not supported on mobile');
+  }
+
   /// Trims a video to the specified duration
   ///
   /// Parameters:
